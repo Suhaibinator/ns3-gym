@@ -3,6 +3,7 @@ __copyright__ = "Copyright (c) 2018, Technische Universität Berlin"
 __version__ = "0.1.0"
 __email__ = "gawlowicz@tkn.tu-berlin.de"
 
+import numpy as np
 
 class Tcp(object):
     """docstring for Tcp"""
@@ -93,6 +94,9 @@ class TcpTimeBased(Tcp):
     """docstring for TcpTimeBased"""
     def __init__(self):
         super(TcpTimeBased, self).__init__()
+        # self.Qarray = np.zeros((1,2),float)
+        # self.stepSize = 
+
 
     def get_action(self, obs, reward, done, info):
         # unique socket ID
@@ -129,8 +133,8 @@ class TcpTimeBased(Tcp):
         throughput = obs[15]
 
         # compute new values
-        new_cWnd = 10 * segmentSize
-        new_ssThresh = 5 * segmentSize
+        new_cWnd = 20 * int(segmentSize)
+        new_ssThresh = 10 * int(segmentSize)
 
         # return actions
         actions = [new_ssThresh, new_cWnd]

@@ -176,7 +176,6 @@ class Ns3ZmqBridge(object):
     def rx_env_state(self):
         if self.newStateRx:
             return
-
         request = self.socket.recv()
         envStateMsg = pb.EnvStateMsg()
         envStateMsg.ParseFromString(request)
@@ -253,9 +252,11 @@ class Ns3ZmqBridge(object):
                 data = boxContainerPb.doubleData
             else:
                 data = boxContainerPb.floatData
-
+            data_array = np.zeros(boxContainerPb.shape)
+            for i in range(boxContainerPb.shape[0]):
+                data_array[i] = float(data[i])
             # TODO: reshape using shape info
-            return data
+            return data_array
 
         elif (dataContainerPb.type == pb.Tuple):
             tupleDataPb = pb.TupleDataContainer()

@@ -51,6 +51,6 @@ class TcpNewReno(TcpEventBased):
         new_ssThresh = int(max (2 * segmentSize, bytesInFlight / 2))
 
         # return actions
-        actions = [new_ssThresh, new_cWnd]
+        actions = [new_ssThresh, int(new_cWnd)]
 
         return actions

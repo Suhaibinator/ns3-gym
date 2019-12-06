@@ -27,7 +27,7 @@
 #include "ns3/tcp-socket-base.h"
 #include <vector>
 #include <numeric>
-
+#include <cmath>
 
 namespace ns3 {
 
@@ -142,24 +142,6 @@ TcpGymEnv::GetTcpCAEventName(const TcpSocketState::TcpCAEvent_t event)
   return eventName;
 }
 
-/*
-Define action space
-*/
-Ptr<OpenGymSpace>
-TcpGymEnv::GetActionSpace()
-{
-  // new_ssThresh
-  // new_cWnd
-  uint32_t parameterNum = 2;
-  float low = 0.0;
-  float high = 65535;
-  std::vector<uint32_t> shape = {parameterNum,};
-  std::string dtype = TypeNameGet<uint32_t> ();
-
-  Ptr<OpenGymBoxSpace> box = CreateObject<OpenGymBoxSpace> (low, high, shape, dtype);
-  NS_LOG_INFO ("MyGetActionSpace: " << box);
-  return box;
-}
 
 /*
 Define game over condition
@@ -182,12 +164,19 @@ TcpGymEnv::GetGameOver()
 Define reward function
 */
 float
-TcpGymEnv::GetReward()
+TcpTimeStepGymEnv::GetReward()
 {
   NS_LOG_INFO("MyGetReward: " << m_envReward);
   return m_envReward;
 }
 
+
+float
+TcpEventGymEnv::GetReward()
+{
+  NS_LOG_INFO("MyGetReward: " << m_envReward);
+  return m_envReward;
+}
 /*
 Define extra info. Optional
 */
@@ -204,10 +193,9 @@ Execute received actions
 bool
 TcpGymEnv::ExecuteActions(Ptr<OpenGymDataContainer> action)
 {
-  Ptr<OpenGymBoxContainer<uint32_t> > box = DynamicCast<OpenGymBoxContainer<uint32_t> >(action);
-  m_new_ssThresh = box->GetValue(0);
-  m_new_cWnd = box->GetValue(1);
-
+  Ptr<OpenGymBoxContainer<float> > box = DynamicCast<OpenGymBoxContainer<float> >(action);
+  m_new_ssThresh = ceil(box->GetValue(0));
+  m_new_cWnd = ceil(box->GetValue(1));
   NS_LOG_INFO ("MyExecuteActions: " << action);
   return true;
 }
@@ -241,6 +229,26 @@ void
 TcpEventGymEnv::DoDispose ()
 {
   NS_LOG_FUNCTION (this);
+}
+
+/*
+Define action space
+*/
+Ptr<OpenGymSpace>
+TcpEventGymEnv::GetActionSpace()
+{
+  // new_ssThresh
+  // new_cWnd
+  uint32_t parameterNum = 2;
+  float low = m_tcb->m_segmentSize;
+  float high = 65535;
+  std::vector<uint32_t> shape = {parameterNum,};
+  //std::string dtype = TypeNameGet<uint32_t> ();
+  std::string dtype = TypeNameGet<float> ();
+
+  Ptr<OpenGymBoxSpace> box = CreateObject<OpenGymBoxSpace> (low, high, shape, dtype);
+  NS_LOG_INFO ("MyGetActionSpace: " << box);
+  return box;
 }
 
 void
@@ -354,7 +362,7 @@ TcpEventGymEnv::IncreaseWindow (Ptr<TcpSocketState> tcb, uint32_t segmentsAcked)
 {
   NS_LOG_FUNCTION (this);
   // pkt was acked, so reward
-  m_envReward = m_reward;
+  // m_envReward = m_reward;
 
   NS_LOG_INFO(Simulator::Now() << " Node: " << m_nodeId << " IncreaseWindow, SegmentsAcked: " << segmentsAcked);
   m_calledFunc = CalledFunc_t::INCREASE_WINDOW;
@@ -523,7 +531,7 @@ TcpTimeStepGymEnv::GetObservation()
     segmentsAckedAvg = segmentsAckedSum / m_segmentsAcked.size();
   }
   box->AddValue(segmentsAckedAvg);
-
+;
   //avgRtt
   Time avgRtt = Seconds(0.0);
   if(m_rttSampleNum) {
@@ -554,7 +562,12 @@ TcpTimeStepGymEnv::GetObservation()
 
   // Print data
   NS_LOG_INFO ("MyGetObservation: " << box);
-
+  float segmentNotAcked = bytesInFlightSum / float(m_tcb -> m_segmentSize);
+  if (segmentsAckedSum + segmentNotAcked > 0)
+    m_envReward = 10.0* throughput - 2000.0* segmentNotAcked / (segmentsAckedSum + segmentNotAcked) - 1000.0 *avgInterTx.GetSeconds();
+  else
+    m_envReward = 10.0* throughput - 1000.0 *avgInterTx.GetSeconds();
+ 
   m_bytesInFlight.clear();
   m_segmentsAcked.clear();
 
@@ -658,6 +671,26 @@ TcpTimeStepGymEnv::CwndEvent (Ptr<TcpSocketState> tcb, const TcpSocketState::Tcp
   std::string eventName = GetTcpCAEventName(event);
   NS_LOG_INFO(Simulator::Now() << " Node: " << m_nodeId << " CwndEvent: " << event << " " << eventName);
   m_tcb = tcb;
+}
+
+/*
+Define action space
+*/
+Ptr<OpenGymSpace>
+TcpTimeStepGymEnv::GetActionSpace()
+{
+  // new_ssThresh
+  // new_cWnd
+  uint32_t parameterNum = 2;
+  float low = m_tcb->m_segmentSize;
+  float high = 65535;
+  std::vector<uint32_t> shape = {parameterNum,};
+  //std::string dtype = TypeNameGet<uint32_t> ();
+  std::string dtype = TypeNameGet<float> ();
+
+  Ptr<OpenGymBoxSpace> box = CreateObject<OpenGymBoxSpace> (low, high, shape, dtype);
+  NS_LOG_INFO ("MyGetActionSpace: " << box);
+  return box;
 }
 
 } // namespace ns3

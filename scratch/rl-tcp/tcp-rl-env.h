@@ -48,9 +48,9 @@ public:
   std::string GetTcpCAEventName(const TcpSocketState::TcpCAEvent_t event);
 
   // OpenGym interface
-  virtual Ptr<OpenGymSpace> GetActionSpace();
+  virtual Ptr<OpenGymSpace> GetActionSpace() = 0;
   virtual bool GetGameOver();
-  virtual float GetReward();
+  virtual float GetReward() = 0;
   virtual std::string GetExtraInfo();
   virtual bool ExecuteActions(Ptr<OpenGymDataContainer> action);
 
@@ -89,7 +89,7 @@ protected:
   bool m_isGameOver;
 
   // reward
-  float m_envReward;
+  double m_envReward;
 
   // extra info
   std::string m_info;
@@ -112,8 +112,10 @@ public:
   void SetPenalty(float value);
 
   // OpenGym interface
+  virtual Ptr<OpenGymSpace> GetActionSpace();
   virtual Ptr<OpenGymSpace> GetObservationSpace();
   Ptr<OpenGymDataContainer> GetObservation();
+  virtual float GetReward();
 
   // trace packets, e.g. for calculating inter tx/rx time
   virtual void TxPktTrace(Ptr<const Packet>, const TcpHeader&, Ptr<const TcpSocketBase>);
@@ -153,8 +155,10 @@ public:
   virtual void DoDispose ();
 
   // OpenGym interface
+  virtual Ptr<OpenGymSpace> GetActionSpace();
   virtual Ptr<OpenGymSpace> GetObservationSpace();
   Ptr<OpenGymDataContainer> GetObservation();
+  virtual float GetReward();
 
   // trace packets, e.g. for calculating inter tx/rx time
   virtual void TxPktTrace(Ptr<const Packet>, const TcpHeader&, Ptr<const TcpSocketBase>);
