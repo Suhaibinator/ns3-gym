@@ -25,7 +25,9 @@
 #include "ns3/log.h"
 #include "ns3/simulator.h"
 #include "ns3/tcp-socket-base.h"
+#include "ns3/queue.h"
 #include <vector>
+#include <queue>
 #include <numeric>
 #include <cmath>
 
@@ -286,7 +288,7 @@ TcpEventGymEnv::GetObservationSpace()
   // congetsion algorithm (CA) state
   // CA event
   // ECN state
-  uint32_t parameterNum = 15;
+  uint32_t parameterNum = 116;
   float low = 0.0;
   float high = 1000000000.0;
   std::vector<uint32_t> shape = {parameterNum,};
@@ -303,26 +305,47 @@ Collect observations
 Ptr<OpenGymDataContainer>
 TcpEventGymEnv::GetObservation()
 {
-  uint32_t parameterNum = 15;
+  uint32_t parameterNum = 116;
   std::vector<uint32_t> shape = {parameterNum,};
 
   Ptr<OpenGymBoxContainer<uint64_t> > box = CreateObject<OpenGymBoxContainer<uint64_t> >(shape);
 
-  box->AddValue(m_socketUuid);
-  box->AddValue(0);
-  box->AddValue(Simulator::Now().GetMicroSeconds ());
-  box->AddValue(m_nodeId);
-  box->AddValue(m_tcb->m_ssThresh);
-  box->AddValue(m_tcb->m_cWnd);
-  box->AddValue(m_tcb->m_segmentSize);
-  box->AddValue(m_segmentsAcked);
-  box->AddValue(m_bytesInFlight);
-  box->AddValue(m_rtt.GetMicroSeconds ());
-  box->AddValue(m_tcb->m_minRtt.GetMicroSeconds ());
-  box->AddValue(m_calledFunc);
-  box->AddValue(m_tcb->m_congState);
-  box->AddValue(m_event);
-  box->AddValue(m_tcb->m_ecnState);
+  box->AddValue(m_socketUuid);  // 0
+  box->AddValue(0); // 1
+  box->AddValue(Simulator::Now().GetMicroSeconds ()); // 2
+  box->AddValue(m_nodeId); // 3
+  box->AddValue(m_tcb->m_ssThresh); // 4
+  box->AddValue(m_tcb->m_cWnd); // 5
+  box->AddValue(m_tcb->m_segmentSize);  // 6
+  box->AddValue(m_segmentsAcked); // 7
+  box->AddValue(m_bytesInFlight); // 8
+  box->AddValue(m_rtt.GetMicroSeconds ());  // 9
+  box->AddValue(m_tcb->m_minRtt.GetMicroSeconds ());  // 10
+  box->AddValue(m_calledFunc);  // 11
+  box->AddValue(m_tcb->m_congState);  // 12
+  box->AddValue(m_event); // 13
+  box->AddValue(m_tcb->m_ecnState); // 14
+  std::queue<uint> temp;
+  while(!recentRtts.empty()){
+    uint j = recentRtts.front();
+    recentRtts.pop();
+    temp.push(j);
+    box->AddValue(j);
+  }
+  while (!temp.empty()){
+    recentRtts.push(temp.front());
+    temp.pop();
+  }
+
+  for (uint i = recentRtts.size(); i < rttQueueSize; i++){
+    box->AddValue(-1);
+  }
+
+  Ptr<Node> left = Names::Find<Node> ("Left");
+  PointerValue ptr;
+  left->GetDevice(1)->GetAttribute("TxQueue", ptr);
+  Ptr<Queue<Packet> > q = ptr.Get<Queue<Packet> > ();
+  box->AddValue(q->GetNPackets());
 
   // Print data
   NS_LOG_INFO ("MyGetObservation: " << box);
@@ -383,6 +406,10 @@ TcpEventGymEnv::PktsAcked (Ptr<TcpSocketState> tcb, uint32_t segmentsAcked, cons
   m_tcb = tcb;
   m_segmentsAcked = segmentsAcked;
   m_rtt = rtt;
+  recentRtts.push(m_rtt.GetMicroSeconds());
+  if (recentRtts.size() > rttQueueSize){
+    recentRtts.pop();
+  }
 }
 
 void

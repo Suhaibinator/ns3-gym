@@ -24,6 +24,7 @@
 #include "ns3/opengym-module.h"
 #include "ns3/tcp-socket-base.h"
 #include <vector>
+#include <queue>
 
 namespace ns3 {
 
@@ -128,6 +129,7 @@ public:
   virtual void PktsAcked (Ptr<TcpSocketState> tcb, uint32_t segmentsAcked, const Time& rtt);
   virtual void CongestionStateSet (Ptr<TcpSocketState> tcb, const TcpSocketState::TcpCongState_t newState);
   virtual void CwndEvent (Ptr<TcpSocketState> tcb, const TcpSocketState::TcpCAEvent_t event);
+  const uint rttQueueSize = 100;
 
 private:
   // state
@@ -138,6 +140,7 @@ private:
   Time m_rtt;
   TcpSocketState::TcpCongState_t m_newState;
   TcpSocketState::TcpCAEvent_t m_event;
+  std::queue<int64_t> recentRtts;
 
   // reward
   float m_reward;
