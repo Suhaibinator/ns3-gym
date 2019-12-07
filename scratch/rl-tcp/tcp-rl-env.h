@@ -51,7 +51,7 @@ public:
   // OpenGym interface
   virtual Ptr<OpenGymSpace> GetActionSpace() = 0;
   virtual bool GetGameOver();
-  virtual float GetReward() = 0;
+  virtual float GetReward();
   virtual std::string GetExtraInfo();
   virtual bool ExecuteActions(Ptr<OpenGymDataContainer> action);
 
@@ -116,7 +116,6 @@ public:
   virtual Ptr<OpenGymSpace> GetActionSpace();
   virtual Ptr<OpenGymSpace> GetObservationSpace();
   Ptr<OpenGymDataContainer> GetObservation();
-  virtual float GetReward();
 
   // trace packets, e.g. for calculating inter tx/rx time
   virtual void TxPktTrace(Ptr<const Packet>, const TcpHeader&, Ptr<const TcpSocketBase>);
@@ -161,7 +160,7 @@ public:
   virtual Ptr<OpenGymSpace> GetActionSpace();
   virtual Ptr<OpenGymSpace> GetObservationSpace();
   Ptr<OpenGymDataContainer> GetObservation();
-  virtual float GetReward();
+  virtual bool ExecuteActions(Ptr<OpenGymDataContainer> action);
 
   // trace packets, e.g. for calculating inter tx/rx time
   virtual void TxPktTrace(Ptr<const Packet>, const TcpHeader&, Ptr<const TcpSocketBase>);
@@ -183,9 +182,10 @@ private:
   Ptr<const TcpSocketState> m_tcb;
   std::vector<uint32_t> m_bytesInFlight;
   std::vector<uint32_t> m_segmentsAcked;
+  std::vector<Time> m_rttSamples;
 
-  uint64_t m_rttSampleNum {0};
-  Time m_rttSum {MicroSeconds (0.0)};
+  //uint64_t m_rttSampleNum {0};
+  //Time m_rttSum {MicroSeconds (0.0)};
 
   Time m_lastPktTxTime {MicroSeconds(0.0)};
   Time m_lastPktRxTime {MicroSeconds(0.0)};
