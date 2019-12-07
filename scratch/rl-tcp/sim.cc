@@ -64,8 +64,8 @@ QueueDiscContainer qd;
 static void
 CountRxPkts(uint32_t sinkId, Ptr<const Packet> packet, const Address & srcAddr)
 {
-  rxPkts[sinkId]+=2;//packet->GetSize()*8;
-  rxTimes[sinkId] = static_cast<uint64_t>(Simulator::Now().GetMicroSeconds());
+  rxPkts[sinkId]+=packet->GetSize()*8;
+  rxTimes[sinkId] = (Simulator::Now().GetMicroSeconds());
 }
 
 static void
@@ -87,9 +87,9 @@ int main (int argc, char *argv[])
   uint32_t nLeaf = 3;
   std::string transport_prot = "TcpRl";
   double error_p = 0.0;
-  std::string bottleneck_bandwidth = "2Mbps";
-  std::string bottleneck_delay = "1ms";
-  std::string access_bandwidth = "50Mbps";
+  std::string bottleneck_bandwidth = "150Mbps";
+  std::string bottleneck_delay = "0.01ms";
+  std::string access_bandwidth = "30Mbps";
   std::string access_delay = "2ms";
   std::string prefix_file_name = "TcpVariantsComparison";
   uint64_t data_mbytes = 0;
