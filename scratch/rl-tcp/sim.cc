@@ -49,17 +49,23 @@
 
 #include "ns3/opengym-module.h"
 #include "tcp-rl.h"
+#include "packetsStatus.h"
+
+//#include "packetsStatus.h"
 
 using namespace ns3;
 
 NS_LOG_COMPONENT_DEFINE ("TcpVariantsComparison");
 
-static std::vector<uint32_t> rxPkts;
+static std::vector<uint64_t> rxPkts;
+static std::vector<uint64_t> rxTimes;
+QueueDiscContainer qd;
 
 static void
 CountRxPkts(uint32_t sinkId, Ptr<const Packet> packet, const Address & srcAddr)
 {
-  rxPkts[sinkId]++;
+  rxPkts[sinkId]+=packet->GetSize()*8;
+  rxTimes[sinkId] = (Simulator::Now().GetMicroSeconds());
 }
 
 static void
@@ -81,9 +87,9 @@ int main (int argc, char *argv[])
   uint32_t nLeaf = 3;
   std::string transport_prot = "TcpRl";
   double error_p = 0.0;
-  std::string bottleneck_bandwidth = "2Mbps";
-  std::string bottleneck_delay = "1ms";
-  std::string access_bandwidth = "50Mbps";
+  std::string bottleneck_bandwidth = "150Mbps";
+  std::string bottleneck_delay = "0.01ms";
+  std::string access_bandwidth = "30Mbps";
   std::string access_delay = "2ms";
   std::string prefix_file_name = "TcpVariantsComparison";
   uint64_t data_mbytes = 0;
@@ -94,6 +100,13 @@ int main (int argc, char *argv[])
   bool sack = true;
   std::string queue_disc_type = "ns3::PfifoFastQueueDisc";
   std::string recovery = "ns3::TcpClassicRecovery";
+
+
+  Ptr<MyReceived> RxPacketsHolder = CreateObject<MyReceived> (&rxPkts);
+  Names::Add("RxPacketsHolder", RxPacketsHolder);
+  Ptr<MyReceived> RxTimessHolder = CreateObject<MyReceived> (&rxTimes);
+  Names::Add("RxTimesHolder", RxTimessHolder);
+
 
   CommandLine cmd;
   // required parameters for OpenGym interface
@@ -209,14 +222,34 @@ int main (int argc, char *argv[])
   bottleNeckLink.SetChannelAttribute ("Delay", StringValue (bottleneck_delay));
   //bottleNeckLink.SetDeviceAttribute  ("ReceiveErrorModel", PointerValue (&error_model));
 
+
+
   PointToPointHelper pointToPointLeaf;
   pointToPointLeaf.SetDeviceAttribute  ("DataRate", StringValue (access_bandwidth));
   pointToPointLeaf.SetChannelAttribute ("Delay", StringValue (access_delay));
 
-  // change the 3 back to nLeaf. Suhaib Abdulquddos
-  PointToPointDumbbellHelper d (nLeaf, pointToPointLeaf,
-                                nLeaf, pointToPointLeaf,
-                                bottleNeckLink);
+NodeContainer senders;
+NodeContainer receivers;
+NodeContainer senderSideBottle;
+NodeContainer receiverSideBottle;
+
+senders.Create(nLeaf);
+receivers.Create(nLeaf);
+
+senderSideBottle.Create(1);
+receiverSideBottle.Create(1);
+
+
+NetDeviceContainer BottleNeckNetDevices = bottleNeckLink.Install(senderSideBottle.Get(0), receiverSideBottle.Get(0));
+
+NetDeviceContainer receiverNetDevices;
+
+for (uint32_t i = 0; i < nLeaf; i++){
+
+  pointToPointLeaf.Install(senders.Get(i), senderSideBottle.Get(0));
+  pointToPointLeaf.Install(receivers.Get(i), receiverSideBottle.Get(0));
+  receiverNetDevices.Add(receivers.Get(i)->GetDevice(0));
+}
 
   // Install IP stack
   InternetStackHelper stack;
@@ -242,27 +275,48 @@ int main (int argc, char *argv[])
   Config::SetDefault ("ns3::CoDelQueueDisc::MaxSize",
                       QueueSizeValue (QueueSize (QueueSizeUnit::BYTES, size)));
 
-  Names::Add ("Left", d.GetLeft());
+  
 
-  if (queue_disc_type.compare ("ns3::PfifoFastQueueDisc") == 0)
+   if (queue_disc_type.compare ("ns3::PfifoFastQueueDisc") == 0)
   {
-    tchPfifo.Install (d.GetLeft()->GetDevice(1));
-    tchPfifo.Install (d.GetRight()->GetDevice(1));
+    qd = tchPfifo.Install (BottleNeckNetDevices);
   }
   else if (queue_disc_type.compare ("ns3::CoDelQueueDisc") == 0)
   {
-    tchCoDel.Install (d.GetLeft()->GetDevice(1));
-    tchCoDel.Install (d.GetRight()->GetDevice(1));
+    qd = tchCoDel.Install (BottleNeckNetDevices);
   }
   else
   {
     NS_FATAL_ERROR ("Queue not recognized. Allowed values are ns3::CoDelQueueDisc or ns3::PfifoFastQueueDisc");
   }
 
-  // Assign IP Addresses
-  d.AssignIpv4Addresses (Ipv4AddressHelper ("10.1.1.0", "255.255.255.0"),
-                         Ipv4AddressHelper ("10.2.1.0", "255.255.255.0"),
-                         Ipv4AddressHelper ("10.3.1.0", "255.255.255.0"));
+  Ptr<QueueDisc> SSBNQ = qd.Get(0);
+  Ptr<QueueDisc> RSBNQ = qd.Get(1);
+  Names::Add("SSBNQ", SSBNQ);
+  Names::Add("RSBNQ", RSBNQ);
+
+
+ // Assign IP Addresses
+  Ipv4AddressHelper senderAddresses;
+  senderAddresses.SetBase ("10.1.1.0", "255.255.255.0");
+  for (uint32_t i = 0; i < nLeaf; i++){
+    senderAddresses.Assign(senders.Get(i)->GetDevice(0));
+  }
+  
+  Ipv4AddressHelper receiverAddresses;
+  receiverAddresses.SetBase ("10.2.1.0", "255.255.255.0");
+  Ipv4InterfaceContainer reciverInterfaces = receiverAddresses.Assign(receiverNetDevices);
+
+
+
+  Ipv4AddressHelper bottleneckAddresses;
+  bottleneckAddresses.SetBase ("10.3.1.0", "255.255.255.0");
+  for (uint32_t i = 0; i < senderSideBottle.Get(0)->GetNDevices(); i++){
+    bottleneckAddresses.Assign(senderSideBottle.Get(0)->GetDevice(i));
+  }
+  for (uint32_t i = 0; i < receiverSideBottle.Get(0)->GetNDevices(); i++){
+    bottleneckAddresses.Assign(receiverSideBottle.Get(0)->GetDevice(i));
+  }
 
 
   NS_LOG_INFO ("Initialize Global Routing.");
@@ -273,25 +327,25 @@ int main (int argc, char *argv[])
   Address sinkLocalAddress (InetSocketAddress (Ipv4Address::GetAny (), port));
   PacketSinkHelper sinkHelper ("ns3::TcpSocketFactory", sinkLocalAddress);
   ApplicationContainer sinkApps;
-  for (uint32_t i = 0; i < d.RightCount (); ++i)
+  for (uint32_t i = 0; i < receivers.GetN(); ++i)
   {
     sinkHelper.SetAttribute ("Protocol", TypeIdValue (TcpSocketFactory::GetTypeId ()));
-    sinkApps.Add (sinkHelper.Install (d.GetRight (i)));
+    sinkApps.Add (sinkHelper.Install (receivers.Get (i)));
   }
   sinkApps.Start (Seconds (0.0));
   sinkApps.Stop  (Seconds (stop_time));
 
-  for (uint32_t i = 0; i < d.LeftCount (); ++i)
+  for (uint32_t i = 0; i < nLeaf; ++i)
   {
     // Create an on/off app sending packets to the left side
-    AddressValue remoteAddress (InetSocketAddress (d.GetRightIpv4Address (i), port));
+    AddressValue remoteAddress (InetSocketAddress (reciverInterfaces.GetAddress(i), port));
     Config::SetDefault ("ns3::TcpSocket::SegmentSize", UintegerValue (tcp_adu_size));
     BulkSendHelper ftp ("ns3::TcpSocketFactory", Address ());
     ftp.SetAttribute ("Remote", remoteAddress);
     ftp.SetAttribute ("SendSize", UintegerValue (tcp_adu_size));
     ftp.SetAttribute ("MaxBytes", UintegerValue (data_mbytes * 1000000));
 
-    ApplicationContainer clientApp = ftp.Install (d.GetLeft (i));
+    ApplicationContainer clientApp = ftp.Install (senders.Get (i));
     clientApp.Start (Seconds (start_time * i)); // Start after sink
     clientApp.Stop (Seconds (stop_time - 3)); // Stop before the sink
   }
@@ -304,12 +358,14 @@ int main (int argc, char *argv[])
   }
 
   // Count RX packets
-  for (uint32_t i = 0; i < d.RightCount (); ++i)
+  for (uint32_t i = 0; i < nLeaf; ++i)
   {
     rxPkts.push_back(0);
+    rxTimes.push_back(0);
     Ptr<PacketSink> pktSink = DynamicCast<PacketSink>(sinkApps.Get(i));
     pktSink->TraceConnectWithoutContext ("Rx", MakeBoundCallback (&CountRxPkts, i));
   }
+
 
   Simulator::Stop (Seconds (stop_time));
   Simulator::Run ();
