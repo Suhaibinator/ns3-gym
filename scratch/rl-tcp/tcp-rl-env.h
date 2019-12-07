@@ -23,6 +23,7 @@
 
 #include "ns3/opengym-module.h"
 #include "ns3/tcp-socket-base.h"
+#include "ns3/point-to-point-module.h"
 #include "packetsStatus.h"
 #include <vector>
 #include <queue>
@@ -84,10 +85,19 @@ protected:
   uint32_t m_nodeId;
   uint32_t m_socketUuid;
 
+  const uint rttQueueSize = 100;
+
   Ptr<MyReceived> latestPackets;
   Ptr<MyReceived> latestTimes;
   std::vector<uint64_t> lastPackets;
   std::vector<uint64_t> lastTimes;
+
+  Ptr<PointToPointNetDevice> sendSideBottle;
+  Ptr<PointToPointNetDevice> recvSideBottle;
+
+  std::queue<int64_t> recentRtts;
+  uint64_t lastPacketsRx;
+  int64_t lastTime;
 
   // state
   // obs has to be implemented in child class
@@ -135,7 +145,6 @@ public:
   virtual void PktsAcked (Ptr<TcpSocketState> tcb, uint32_t segmentsAcked, const Time& rtt);
   virtual void CongestionStateSet (Ptr<TcpSocketState> tcb, const TcpSocketState::TcpCongState_t newState);
   virtual void CwndEvent (Ptr<TcpSocketState> tcb, const TcpSocketState::TcpCAEvent_t event);
-  const uint rttQueueSize = 100;
 
 private:
   // state
@@ -146,9 +155,7 @@ private:
   Time m_rtt;
   TcpSocketState::TcpCongState_t m_newState;
   TcpSocketState::TcpCAEvent_t m_event;
-  std::queue<int64_t> recentRtts;
-  uint64_t lastPacketsRx;
-  int64_t lastTime;
+
 
   // reward
   float m_reward;

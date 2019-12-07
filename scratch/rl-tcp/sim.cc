@@ -50,6 +50,7 @@
 #include "ns3/opengym-module.h"
 #include "tcp-rl.h"
 #include "packetsStatus.h"
+#include <math.h>
 
 //#include "packetsStatus.h"
 
@@ -60,6 +61,10 @@ NS_LOG_COMPONENT_DEFINE ("TcpVariantsComparison");
 static std::vector<uint64_t> rxPkts;
 static std::vector<uint64_t> rxTimes;
 QueueDiscContainer qd;
+
+Ptr<PointToPointNetDevice> sendSideNet;
+Ptr<PointToPointNetDevice> recvSideNet;
+
 
 static void
 CountRxPkts(uint32_t sinkId, Ptr<const Packet> packet, const Address & srcAddr)
@@ -78,6 +83,14 @@ PrintRxCount()
   }
 }
 
+void updateThroughput(){
+  double now = Simulator::Now().GetSeconds();
+  double newThroughput = (75+35*sin(now*3.14159265*2/600) + 15*sin(now*2*3.1415926535/120))*100e6;
+  sendSideNet->SetAttribute ("DataRate", DataRateValue (DataRate (newThroughput)));
+  recvSideNet->SetAttribute ("DataRate", DataRateValue (DataRate (newThroughput)));
+  Simulator::Schedule (MilliSeconds (102), &updateThroughput);
+}
+
 
 int main (int argc, char *argv[])
 {
@@ -85,8 +98,8 @@ int main (int argc, char *argv[])
   double tcpEnvTimeStep = 0.1;
 
   uint32_t nLeaf = 3;
-  std::string transport_prot = "TcpRl";
-  double error_p = 0.0;
+  std::string transport_prot = "TcpRlTimeBased";
+  double error_p = 0.00;
   std::string bottleneck_bandwidth = "150Mbps";
   std::string bottleneck_delay = "0.01ms";
   std::string access_bandwidth = "30Mbps";
@@ -94,7 +107,7 @@ int main (int argc, char *argv[])
   std::string prefix_file_name = "TcpVariantsComparison";
   uint64_t data_mbytes = 0;
   uint32_t mtu_bytes = 400;
-  double duration = 10.0;
+  double duration = 600.0;
   uint32_t run = 0;
   bool flow_monitor = false;
   bool sack = true;
@@ -214,13 +227,13 @@ int main (int argc, char *argv[])
   RateErrorModel error_model;
   error_model.SetRandomVariable (uv);
   error_model.SetUnit (RateErrorModel::ERROR_UNIT_PACKET);
-  error_model.SetRate (error_p);
+  error_model.SetRate (error_p); // change back to error_p, suhaib abdulquddos
 
   // Create the point-to-point link helpers
   PointToPointHelper bottleNeckLink;
   bottleNeckLink.SetDeviceAttribute  ("DataRate", StringValue (bottleneck_bandwidth));
   bottleNeckLink.SetChannelAttribute ("Delay", StringValue (bottleneck_delay));
-  //bottleNeckLink.SetDeviceAttribute  ("ReceiveErrorModel", PointerValue (&error_model));
+  bottleNeckLink.SetDeviceAttribute  ("ReceiveErrorModel", PointerValue (&error_model));
 
 
 
@@ -242,6 +255,13 @@ receiverSideBottle.Create(1);
 
 NetDeviceContainer BottleNeckNetDevices = bottleNeckLink.Install(senderSideBottle.Get(0), receiverSideBottle.Get(0));
 
+sendSideNet = BottleNeckNetDevices.Get(0) -> GetObject<PointToPointNetDevice>();
+recvSideNet = BottleNeckNetDevices.Get(1) -> GetObject<PointToPointNetDevice>();;
+
+
+Names::Add("SendBottleND", sendSideNet);
+Names::Add("RecvBottleND", recvSideNet);
+
 NetDeviceContainer receiverNetDevices;
 
 for (uint32_t i = 0; i < nLeaf; i++){
@@ -253,7 +273,16 @@ for (uint32_t i = 0; i < nLeaf; i++){
 
   // Install IP stack
   InternetStackHelper stack;
-  stack.InstallAll ();
+  stack.Install (senders.Get(0));
+
+  Config::SetDefault ("ns3::TcpL4Protocol::SocketType", TypeIdValue (TypeId::LookupByName ("ns3::TcpNewReno")));
+
+  for (uint32_t i = 1; i < nLeaf; i++){
+    stack.Install(senders.Get(i));
+  }
+  stack.Install(receivers);
+  stack.Install(senderSideBottle);
+  stack.Install(receiverSideBottle);
 
   // Traffic Control
   TrafficControlHelper tchPfifo;
@@ -366,6 +395,7 @@ for (uint32_t i = 0; i < nLeaf; i++){
     pktSink->TraceConnectWithoutContext ("Rx", MakeBoundCallback (&CountRxPkts, i));
   }
 
+  Simulator::Schedule (MilliSeconds (1), &updateThroughput);
 
   Simulator::Stop (Seconds (stop_time));
   Simulator::Run ();

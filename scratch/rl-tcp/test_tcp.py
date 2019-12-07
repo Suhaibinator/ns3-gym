@@ -31,7 +31,7 @@ port = 5555
 simTime = 10 # seconds
 stepTime = 0.5  # seconds
 seed = 12
-simArgs = {"--duration": simTime,}
+simArgs = {"--duration": simTime, "--transport_prot": "TcpRlTimeBased"}
 debug = False
 
 
@@ -133,6 +133,8 @@ for obs in observations:
     calledFunctions[obs[11]] += 1
     congStates[obs[12]] += 1
 
+
+"""
 print(nodeIds)
 #print(congWindows)
 print(segmentsAcked)
@@ -144,6 +146,8 @@ print(congStates)
 #plt.bar(range(len(congWindows)), list(congWindows.values()), align='center')
 #plt.xticks(range(len(congWindows)), list(congWindows.keys()))
 print(wins.keys())
+"""
+
 """
 k = 0
 for i in wins.values():

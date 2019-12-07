@@ -25,11 +25,12 @@
 #include "ns3/log.h"
 #include "ns3/simulator.h"
 #include "ns3/tcp-socket-base.h"
-#include "ns3/queue.h"
+#include "ns3/traffic-control-module.h"
 #include <vector>
 #include <queue>
 #include <numeric>
 #include <cmath>
+
 
 namespace ns3 {
 
@@ -208,6 +209,15 @@ NS_OBJECT_ENSURE_REGISTERED (TcpEventGymEnv);
 TcpEventGymEnv::TcpEventGymEnv () : TcpGymEnv()
 {
   NS_LOG_FUNCTION (this);
+
+  latestPackets = Names::Find<MyReceived>("RxPacketsHolder");
+  latestTimes = Names::Find<MyReceived>("RxTimesHolder");
+  for (int i = 0; i < latestTimes->GetNumLeaf(); i++){
+    lastPackets.push_back(0);
+    lastTimes.push_back(0);
+  }
+  sendSideBottle = Names::Find<PointToPointNetDevice>("SendBottleND");
+  recvSideBottle = Names::Find<PointToPointNetDevice>("RecvBottleND");
 }
 
 TcpEventGymEnv::~TcpEventGymEnv ()
@@ -288,7 +298,7 @@ TcpEventGymEnv::GetObservationSpace()
   // congetsion algorithm (CA) state
   // CA event
   // ECN state
-  uint32_t parameterNum = 116;
+  uint32_t parameterNum = 120;
   float low = 0.0;
   float high = 1000000000.0;
   std::vector<uint32_t> shape = {parameterNum,};
@@ -305,7 +315,7 @@ Collect observations
 Ptr<OpenGymDataContainer>
 TcpEventGymEnv::GetObservation()
 {
-  uint32_t parameterNum = 116;
+  uint32_t parameterNum = 120;
   std::vector<uint32_t> shape = {parameterNum,};
 
   Ptr<OpenGymBoxContainer<uint64_t> > box = CreateObject<OpenGymBoxContainer<uint64_t> >(shape);
@@ -341,11 +351,20 @@ TcpEventGymEnv::GetObservation()
     box->AddValue(-1);
   }
 
-  Ptr<Node> left = Names::Find<Node> ("Left");
-  PointerValue ptr;
-  left->GetDevice(1)->GetAttribute("TxQueue", ptr);
-  Ptr<Queue<Packet> > q = ptr.Get<Queue<Packet> > ();
-  box->AddValue(q->GetNPackets());
+  Ptr<QueueDisc> SenderSideBottleNeckQueue = Names::Find<QueueDisc> ("SSBNQ");
+  Ptr<QueueDisc> ReceiverSideBottleNeckQueue = Names::Find<QueueDisc> ("RSBNQ");
+  box->AddValue(SenderSideBottleNeckQueue-> GetCurrentSize().GetValue());
+  box->AddValue(ReceiverSideBottleNeckQueue -> GetCurrentSize().GetValue());
+
+  int nLeaf = latestPackets->GetNumLeaf();
+
+  for (int i = 0; i < nLeaf; i++){
+    double currentBandwidth = (double)latestPackets->GetPackets(i)-lastPackets.at(i);//;(latestPackets->GetPackets(i)-lastPackets.at(i))/(1+latestTimes->GetPackets(i) - lastTimes.at(i));
+    lastPackets[i] = latestPackets->GetPackets(i);
+    lastTimes[i] = latestTimes->GetPackets(i);
+    box->AddValue(currentBandwidth);
+  }
+
 
   // Print data
   NS_LOG_INFO ("MyGetObservation: " << box);
@@ -452,6 +471,16 @@ TcpTimeStepGymEnv::TcpTimeStepGymEnv (Time timeStep) : TcpGymEnv()
   NS_LOG_FUNCTION (this);
   m_timeStep = timeStep;
   m_envReward = 0.0;
+
+  latestPackets = Names::Find<MyReceived>("RxPacketsHolder");
+  latestTimes = Names::Find<MyReceived>("RxTimesHolder");
+  for (int i = 0; i < latestTimes->GetNumLeaf(); i++){
+    lastPackets.push_back(0);
+    lastTimes.push_back(0);
+  }
+
+  sendSideBottle = Names::Find<PointToPointNetDevice>("SendBottleND");
+  recvSideBottle = Names::Find<PointToPointNetDevice>("RecvBottleND");
 }
 
 void
@@ -507,8 +536,8 @@ TcpTimeStepGymEnv::GetObservationSpace()
   // avgInterTx
   // avgInterRx
   // throughput
-  uint32_t parameterNum = 16;
-  float low = 0.0;
+  uint32_t parameterNum = 121;
+  float low = -2;
   float high = 1000000000.0;
   std::vector<uint32_t> shape = {parameterNum,};
   std::string dtype = TypeNameGet<uint64_t> ();
@@ -524,68 +553,67 @@ Collect observations
 Ptr<OpenGymDataContainer>
 TcpTimeStepGymEnv::GetObservation()
 {
-  uint32_t parameterNum = 16;
+  uint32_t parameterNum = 121;
   std::vector<uint32_t> shape = {parameterNum,};
 
   Ptr<OpenGymBoxContainer<uint64_t> > box = CreateObject<OpenGymBoxContainer<uint64_t> >(shape);
 
-  box->AddValue(m_socketUuid);
-  box->AddValue(1);
-  box->AddValue(Simulator::Now().GetMicroSeconds ());
-  box->AddValue(m_nodeId);
-  box->AddValue(m_tcb->m_ssThresh);
-  box->AddValue(m_tcb->m_cWnd);
-  box->AddValue(m_tcb->m_segmentSize);
+  box->AddValue(m_socketUuid); // 0
+  box->AddValue(1); // 1
+  box->AddValue(Simulator::Now().GetMicroSeconds ()); // 2
+  box->AddValue(m_nodeId); // 3
+  box->AddValue(m_tcb->m_ssThresh); // 4
+  box->AddValue(m_tcb->m_cWnd); // 5
+  box->AddValue(m_tcb->m_segmentSize); // 6
 
   //bytesInFlightSum
   uint64_t bytesInFlightSum = std::accumulate(m_bytesInFlight.begin(), m_bytesInFlight.end(), 0);
-  box->AddValue(bytesInFlightSum);
+  box->AddValue(bytesInFlightSum); // 7
 
   //bytesInFlightAvg
   uint64_t bytesInFlightAvg = 0;
   if (m_bytesInFlight.size()) {
     bytesInFlightAvg = bytesInFlightSum / m_bytesInFlight.size();
   }
-  box->AddValue(bytesInFlightAvg);
+  box->AddValue(bytesInFlightAvg); // 8
 
   //segmentsAckedSum
   uint64_t segmentsAckedSum = std::accumulate(m_segmentsAcked.begin(), m_segmentsAcked.end(), 0);
-  box->AddValue(segmentsAckedSum);
+  box->AddValue(segmentsAckedSum); // 9
 
   //segmentsAckedAvg
   uint64_t segmentsAckedAvg = 0;
   if (m_segmentsAcked.size()) {
     segmentsAckedAvg = segmentsAckedSum / m_segmentsAcked.size();
   }
-  box->AddValue(segmentsAckedAvg);
-;
+  box->AddValue(segmentsAckedAvg); // 10
   //avgRtt
   Time avgRtt = Seconds(0.0);
   if(m_rttSampleNum) {
     avgRtt = m_rttSum / m_rttSampleNum;
   }
-  box->AddValue(avgRtt.GetMicroSeconds ());
+  box->AddValue(avgRtt.GetMicroSeconds ()); // 11
 
   //m_minRtt
-  box->AddValue(m_tcb->m_minRtt.GetMicroSeconds ());
+  box->AddValue(m_tcb->m_minRtt.GetMicroSeconds ()); // 12
 
   //avgInterTx
   Time avgInterTx = Seconds(0.0);
   if (m_interTxTimeNum) {
     avgInterTx = m_interTxTimeSum / m_interTxTimeNum;
   }
-  box->AddValue(avgInterTx.GetMicroSeconds ());
+  box->AddValue(avgInterTx.GetMicroSeconds ()); // 13
 
   //avgInterRx
   Time avgInterRx = Seconds(0.0);
   if (m_interRxTimeNum) {
     avgInterRx = m_interRxTimeSum / m_interRxTimeNum;
   }
-  box->AddValue(avgInterRx.GetMicroSeconds ());
+  box->AddValue(avgInterRx.GetMicroSeconds ()); // 14
 
   //throughput  bytes/s
   float throughput = (segmentsAckedSum * m_tcb->m_segmentSize) / m_timeStep.GetSeconds();
-  box->AddValue(throughput);
+  box->AddValue(throughput); // 15
 
   // Print data
   NS_LOG_INFO ("MyGetObservation: " << box);
@@ -595,6 +623,46 @@ TcpTimeStepGymEnv::GetObservation()
   else
     m_envReward = 10.0* throughput - 1000.0 *avgInterTx.GetSeconds();
  
+
+  int nLeaf = latestPackets->GetNumLeaf();
+
+  // 16 - 18
+  for (int i = 0; i < nLeaf; i++){
+    //double currentBandwidth = (double)(latestPackets->GetPackets(i)-lastPackets.at(i))/(latestTimes->GetPackets(i) - lastTimes.at(i));//;(latestPackets->GetPackets(i)-lastPackets.at(i))/(1+latestTimes->GetPackets(i) - lastTimes.at(i));
+    box->AddValue(((double)(latestPackets->GetPackets(i)-lastPackets.at(i)))/((double)(latestTimes->GetPackets(i) - lastTimes.at(i))*1e-3));
+    lastPackets[i] = latestPackets->GetPackets(i);
+    lastTimes[i] = latestTimes->GetPackets(i);
+  }
+
+  Ptr<QueueDisc> SenderSideBottleNeckQueue = Names::Find<QueueDisc> ("SSBNQ");
+  Ptr<QueueDisc> ReceiverSideBottleNeckQueue = Names::Find<QueueDisc> ("RSBNQ");
+  box->AddValue(SenderSideBottleNeckQueue-> GetCurrentSize().GetValue()); // 19
+  box->AddValue(ReceiverSideBottleNeckQueue -> GetCurrentSize().GetValue()); // 20
+
+  DataRateValue sdr;
+  sendSideBottle->GetAttribute("DataRate", sdr);
+  box->AddValue(sdr.Get().GetBitRate()/1000.0);
+  DataRateValue rdr;
+  recvSideBottle->GetAttribute("DataRate", rdr);
+  box->AddValue(rdr.Get().GetBitRate()/1000.0);
+
+  std::queue<uint> temp;
+  while(!recentRtts.empty()){
+    uint j = recentRtts.front();
+    recentRtts.pop();
+    temp.push(j);
+    box->AddValue(j);
+  }
+  while (!temp.empty()){
+    recentRtts.push(temp.front());
+    temp.pop();
+  }
+
+  for (uint i = recentRtts.size(); i < rttQueueSize; i++){
+    box->AddValue(-1);
+  }
+
+
   m_bytesInFlight.clear();
   m_segmentsAcked.clear();
 
@@ -680,6 +748,12 @@ TcpTimeStepGymEnv::PktsAcked (Ptr<TcpSocketState> tcb, uint32_t segmentsAcked, c
   m_tcb = tcb;
   m_rttSum += rtt;
   m_rttSampleNum++;
+
+
+  recentRtts.push(rtt.GetMicroSeconds());
+  if (recentRtts.size() > rttQueueSize){
+    recentRtts.pop();
+  }
 }
 
 void
