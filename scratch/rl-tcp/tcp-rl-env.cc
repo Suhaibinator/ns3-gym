@@ -34,255 +34,256 @@
 
 namespace ns3 {
 
-NS_LOG_COMPONENT_DEFINE ("ns3::TcpGymEnv");
-NS_OBJECT_ENSURE_REGISTERED (TcpGymEnv);
+  NS_LOG_COMPONENT_DEFINE ("ns3::TcpGymEnv");
+  NS_OBJECT_ENSURE_REGISTERED (TcpGymEnv);
 
-TcpGymEnv::TcpGymEnv ()
-{
-  NS_LOG_FUNCTION (this);
-  SetOpenGymInterface(OpenGymInterface::Get());
-}
+  TcpGymEnv::TcpGymEnv ()
+  {
+    NS_LOG_FUNCTION (this);
+    SetOpenGymInterface(OpenGymInterface::Get());
+  }
 
-TcpGymEnv::~TcpGymEnv ()
-{
-  NS_LOG_FUNCTION (this);
-}
+  TcpGymEnv::~TcpGymEnv ()
+  {
+    NS_LOG_FUNCTION (this);
+  }
 
-TypeId
-TcpGymEnv::GetTypeId (void)
-{
-  static TypeId tid = TypeId ("ns3::TcpGymEnv")
+  TypeId
+  TcpGymEnv::GetTypeId (void)
+  {
+    static TypeId tid = TypeId ("ns3::TcpGymEnv")
     .SetParent<OpenGymEnv> ()
     .SetGroupName ("OpenGym")
-  ;
+    ;
 
-  return tid;
-}
+    return tid;
+  }
 
-void
-TcpGymEnv::DoDispose ()
-{
-  NS_LOG_FUNCTION (this);
-}
+  void
+  TcpGymEnv::DoDispose ()
+  {
+    NS_LOG_FUNCTION (this);
+  }
 
-void
-TcpGymEnv::SetNodeId(uint32_t id)
-{
-  NS_LOG_FUNCTION (this);
-  m_nodeId = id;
-}
+  void
+  TcpGymEnv::SetNodeId(uint32_t id)
+  {
+    NS_LOG_FUNCTION (this);
+    m_nodeId = id;
+  }
 
-void
-TcpGymEnv::SetSocketUuid(uint32_t id)
-{
-  NS_LOG_FUNCTION (this);
-  m_socketUuid = id;
-}
+  void
+  TcpGymEnv::SetSocketUuid(uint32_t id)
+  {
+    NS_LOG_FUNCTION (this);
+    m_socketUuid = id;
+  }
 
-std::string
-TcpGymEnv::GetTcpCongStateName(const TcpSocketState::TcpCongState_t state)
-{
-  std::string stateName = "UNKNOWN";
-  switch(state) {
-    case TcpSocketState::CA_OPEN:
+  std::string
+  TcpGymEnv::GetTcpCongStateName(const TcpSocketState::TcpCongState_t state)
+  {
+    std::string stateName = "UNKNOWN";
+    switch(state) {
+      case TcpSocketState::CA_OPEN:
       stateName = "CA_OPEN";
       break;
-    case TcpSocketState::CA_DISORDER:
+      case TcpSocketState::CA_DISORDER:
       stateName = "CA_DISORDER";
       break;
-    case TcpSocketState::CA_CWR:
+      case TcpSocketState::CA_CWR:
       stateName = "CA_CWR";
       break;
-    case TcpSocketState::CA_RECOVERY:
+      case TcpSocketState::CA_RECOVERY:
       stateName = "CA_RECOVERY";
       break;
-    case TcpSocketState::CA_LOSS:
+      case TcpSocketState::CA_LOSS:
       stateName = "CA_LOSS";
       break;
-    case TcpSocketState::CA_LAST_STATE:
+      case TcpSocketState::CA_LAST_STATE:
       stateName = "CA_LAST_STATE";
       break;
-    default:
-       stateName = "UNKNOWN";
-       break;
+      default:
+      stateName = "UNKNOWN";
+      break;
+    }
+    return stateName;
   }
-  return stateName;
-}
 
-std::string
-TcpGymEnv::GetTcpCAEventName(const TcpSocketState::TcpCAEvent_t event)
-{
-  std::string eventName = "UNKNOWN";
-  switch(event) {
-    case TcpSocketState::CA_EVENT_TX_START:
+  std::string
+  TcpGymEnv::GetTcpCAEventName(const TcpSocketState::TcpCAEvent_t event)
+  {
+    std::string eventName = "UNKNOWN";
+    switch(event) {
+      case TcpSocketState::CA_EVENT_TX_START:
       eventName = "CA_EVENT_TX_START";
       break;
-    case TcpSocketState::CA_EVENT_CWND_RESTART:
+      case TcpSocketState::CA_EVENT_CWND_RESTART:
       eventName = "CA_EVENT_CWND_RESTART";
       break;
-    case TcpSocketState::CA_EVENT_COMPLETE_CWR:
+      case TcpSocketState::CA_EVENT_COMPLETE_CWR:
       eventName = "CA_EVENT_COMPLETE_CWR";
       break;
-    case TcpSocketState::CA_EVENT_LOSS:
+      case TcpSocketState::CA_EVENT_LOSS:
       eventName = "CA_EVENT_LOSS";
       break;
-    case TcpSocketState::CA_EVENT_ECN_NO_CE:
+      case TcpSocketState::CA_EVENT_ECN_NO_CE:
       eventName = "CA_EVENT_ECN_NO_CE";
       break;
-    case TcpSocketState::CA_EVENT_ECN_IS_CE:
+      case TcpSocketState::CA_EVENT_ECN_IS_CE:
       eventName = "CA_EVENT_ECN_IS_CE";
       break;
-    case TcpSocketState::CA_EVENT_DELAYED_ACK:
+      case TcpSocketState::CA_EVENT_DELAYED_ACK:
       eventName = "CA_EVENT_DELAYED_ACK";
       break;
-    case TcpSocketState::CA_EVENT_NON_DELAYED_ACK:
+      case TcpSocketState::CA_EVENT_NON_DELAYED_ACK:
       eventName = "CA_EVENT_NON_DELAYED_ACK";
       break;
-    default:
-       eventName = "UNKNOWN";
-       break;
+      default:
+      eventName = "UNKNOWN";
+      break;
+    }
+    return eventName;
   }
-  return eventName;
-}
 
 
 /*
 Define game over condition
 */
-bool
-TcpGymEnv::GetGameOver()
-{
-  m_isGameOver = false;
-  bool test = false;
-  static float stepCounter = 0.0;
-  stepCounter += 1;
-  if (stepCounter == 10 && test) {
+  bool
+  TcpGymEnv::GetGameOver()
+  {
+    m_isGameOver = false;
+    bool test = false;
+    static float stepCounter = 0.0;
+    stepCounter += 1;
+    if (stepCounter == 10 && test) {
       m_isGameOver = true;
+    }
+    NS_LOG_INFO ("MyGetGameOver: " << m_isGameOver);
+    return m_isGameOver;
   }
-  NS_LOG_INFO ("MyGetGameOver: " << m_isGameOver);
-  return m_isGameOver;
-}
 
 /*
 Define reward function
 */
-float
-TcpTimeStepGymEnv::GetReward()
-{
-  NS_LOG_INFO("MyGetReward: " << m_envReward);
-  return m_envReward;
-}
+  float
+  TcpTimeStepGymEnv::GetReward()
+  {
+    NS_LOG_INFO("MyGetReward: " << m_envReward);
+    return m_envReward;
+  }
 
 
-float
-TcpEventGymEnv::GetReward()
-{
-  NS_LOG_INFO("MyGetReward: " << m_envReward);
-  return m_envReward;
-}
+  float
+  TcpEventGymEnv::GetReward()
+  {
+    NS_LOG_INFO("MyGetReward: " << m_envReward);
+    return m_envReward;
+  }
 /*
 Define extra info. Optional
 */
-std::string
-TcpGymEnv::GetExtraInfo()
-{
-  NS_LOG_INFO("MyGetExtraInfo: " << m_info);
-  return m_info;
-}
+  std::string
+  TcpGymEnv::GetExtraInfo()
+  {
+    NS_LOG_INFO("MyGetExtraInfo: " << m_info);
+    return m_info;
+  }
 
 /*
 Execute received actions
 */
-bool
-TcpGymEnv::ExecuteActions(Ptr<OpenGymDataContainer> action)
-{
-  Ptr<OpenGymBoxContainer<float> > box = DynamicCast<OpenGymBoxContainer<float> >(action);
-  m_new_ssThresh = ceil(box->GetValue(0));
-  m_new_cWnd = ceil(box->GetValue(1));
-  NS_LOG_INFO ("MyExecuteActions: " << action);
-  return true;
-}
-
-
-NS_OBJECT_ENSURE_REGISTERED (TcpEventGymEnv);
-
-TcpEventGymEnv::TcpEventGymEnv () : TcpGymEnv()
-{
-  NS_LOG_FUNCTION (this);
-
-  latestPackets = Names::Find<MyReceived>("RxPacketsHolder");
-  latestTimes = Names::Find<MyReceived>("RxTimesHolder");
-  for (int i = 0; i < latestTimes->GetNumLeaf(); i++){
-    lastPackets.push_back(0);
-    lastTimes.push_back(0);
+  bool
+  TcpGymEnv::ExecuteActions(Ptr<OpenGymDataContainer> action)
+  {
+    Ptr<OpenGymBoxContainer<float> > box = DynamicCast<OpenGymBoxContainer<float> >(action);
+    m_new_ssThresh = ceil(box->GetValue(0));
+    m_new_cWnd = ceil(box->GetValue(1));
+    NS_LOG_INFO ("MyExecuteActions: " << action);
+    return true;
   }
-  sendSideBottle = Names::Find<PointToPointNetDevice>("SendBottleND");
-  recvSideBottle = Names::Find<PointToPointNetDevice>("RecvBottleND");
-}
 
-TcpEventGymEnv::~TcpEventGymEnv ()
-{
-  NS_LOG_FUNCTION (this);
-}
 
-TypeId
-TcpEventGymEnv::GetTypeId (void)
-{
-  static TypeId tid = TypeId ("ns3::TcpEventGymEnv")
+  NS_OBJECT_ENSURE_REGISTERED (TcpEventGymEnv);
+
+  TcpEventGymEnv::TcpEventGymEnv () : TcpGymEnv()
+  {
+    NS_LOG_FUNCTION (this);
+
+    latestPackets = Names::Find<MyReceived>("RxPacketsHolder");
+    latestTimes = Names::Find<MyReceived>("RxTimesHolder");
+    for (int i = 0; i < latestTimes->GetNumLeaf(); i++){
+      lastPackets.push_back(0);
+      lastTimes.push_back(0);
+      lastThpts.push_back(0.0);
+    }
+    sendSideBottle = Names::Find<PointToPointNetDevice>("SendBottleND");
+    recvSideBottle = Names::Find<PointToPointNetDevice>("RecvBottleND");
+  }
+
+  TcpEventGymEnv::~TcpEventGymEnv ()
+  {
+    NS_LOG_FUNCTION (this);
+  }
+
+  TypeId
+  TcpEventGymEnv::GetTypeId (void)
+  {
+    static TypeId tid = TypeId ("ns3::TcpEventGymEnv")
     .SetParent<TcpGymEnv> ()
     .SetGroupName ("OpenGym")
     .AddConstructor<TcpEventGymEnv> ()
-  ;
+    ;
 
-  return tid;
-}
+    return tid;
+  }
 
-void
-TcpEventGymEnv::DoDispose ()
-{
-  NS_LOG_FUNCTION (this);
-}
+  void
+  TcpEventGymEnv::DoDispose ()
+  {
+    NS_LOG_FUNCTION (this);
+  }
 
 /*
 Define action space
 */
-Ptr<OpenGymSpace>
-TcpEventGymEnv::GetActionSpace()
-{
+  Ptr<OpenGymSpace>
+  TcpEventGymEnv::GetActionSpace()
+  {
   // new_ssThresh
   // new_cWnd
-  uint32_t parameterNum = 2;
-  float low = m_tcb->m_segmentSize;
-  float high = 65535;
-  std::vector<uint32_t> shape = {parameterNum,};
+    uint32_t parameterNum = 2;
+    float low = m_tcb->m_segmentSize;
+    float high = 65535;
+    std::vector<uint32_t> shape = {parameterNum,};
   //std::string dtype = TypeNameGet<uint32_t> ();
-  std::string dtype = TypeNameGet<float> ();
+    std::string dtype = TypeNameGet<float> ();
 
-  Ptr<OpenGymBoxSpace> box = CreateObject<OpenGymBoxSpace> (low, high, shape, dtype);
-  NS_LOG_INFO ("MyGetActionSpace: " << box);
-  return box;
-}
+    Ptr<OpenGymBoxSpace> box = CreateObject<OpenGymBoxSpace> (low, high, shape, dtype);
+    NS_LOG_INFO ("MyGetActionSpace: " << box);
+    return box;
+  }
 
-void
-TcpEventGymEnv::SetReward(float value)
-{
-  NS_LOG_FUNCTION (this);
-  m_reward = value;
-}
+  void
+  TcpEventGymEnv::SetReward(float value)
+  {
+    NS_LOG_FUNCTION (this);
+    m_reward = value;
+  }
 
-void
-TcpEventGymEnv::SetPenalty(float value)
-{
-  NS_LOG_FUNCTION (this);
-  m_penalty = value;
-}
+  void
+  TcpEventGymEnv::SetPenalty(float value)
+  {
+    NS_LOG_FUNCTION (this);
+    m_penalty = value;
+  }
 
 /*
 Define observation space
 */
-Ptr<OpenGymSpace>
-TcpEventGymEnv::GetObservationSpace()
-{
+  Ptr<OpenGymSpace>
+  TcpEventGymEnv::GetObservationSpace()
+  {
   // socket unique ID
   // tcp env type: event-based = 0 / time-based = 1
   // sim time in us
@@ -298,27 +299,27 @@ TcpEventGymEnv::GetObservationSpace()
   // congetsion algorithm (CA) state
   // CA event
   // ECN state
-  uint32_t parameterNum = 120;
-  float low = 0.0;
-  float high = 1000000000.0;
-  std::vector<uint32_t> shape = {parameterNum,};
-  std::string dtype = TypeNameGet<uint64_t> ();
+    uint32_t parameterNum = 120;
+    float low = 0.0;
+    float high = 1000000000.0;
+    std::vector<uint32_t> shape = {parameterNum,};
+    std::string dtype = TypeNameGet<uint64_t> ();
 
-  Ptr<OpenGymBoxSpace> box = CreateObject<OpenGymBoxSpace> (low, high, shape, dtype);
-  NS_LOG_INFO ("MyGetObservationSpace: " << box);
-  return box;
-}
+    Ptr<OpenGymBoxSpace> box = CreateObject<OpenGymBoxSpace> (low, high, shape, dtype);
+    NS_LOG_INFO ("MyGetObservationSpace: " << box);
+    return box;
+  }
 
 /*
 Collect observations
 */
-Ptr<OpenGymDataContainer>
-TcpEventGymEnv::GetObservation()
-{
-  uint32_t parameterNum = 120;
-  std::vector<uint32_t> shape = {parameterNum,};
+  Ptr<OpenGymDataContainer>
+  TcpEventGymEnv::GetObservation()
+  {
+    uint32_t parameterNum = 120;
+    std::vector<uint32_t> shape = {parameterNum,};
 
-  Ptr<OpenGymBoxContainer<uint64_t> > box = CreateObject<OpenGymBoxContainer<uint64_t> >(shape);
+    Ptr<OpenGymBoxContainer<uint64_t> > box = CreateObject<OpenGymBoxContainer<uint64_t> >(shape);
 
   box->AddValue(m_socketUuid);  // 0
   box->AddValue(0); // 1
@@ -359,10 +360,15 @@ TcpEventGymEnv::GetObservation()
   int nLeaf = latestPackets->GetNumLeaf();
 
   for (int i = 0; i < nLeaf; i++){
-    double currentBandwidth = (double)latestPackets->GetPackets(i)-lastPackets.at(i);//;(latestPackets->GetPackets(i)-lastPackets.at(i))/(1+latestTimes->GetPackets(i) - lastTimes.at(i));
-    lastPackets[i] = latestPackets->GetPackets(i);
-    lastTimes[i] = latestTimes->GetPackets(i);
-    box->AddValue(currentBandwidth);
+    if (latestTimes->GetPackets(i) - lastTimes[i] > 2e5){
+      double currentThpt = ((double)(latestPackets->GetPackets(i)-lastPackets.at(i)))/((double)(latestTimes->GetPackets(i) - lastTimes.at(i))*1e-3);
+      box->AddValue(currentThpt);
+      lastPackets[i] = latestPackets->GetPackets(i);
+      lastTimes[i] = latestTimes->GetPackets(i);
+      lastThpts[i] = currentThpt;
+    } else {
+      box->AddValue(lastThpts[i]);
+    }
   }
 
 
@@ -500,9 +506,9 @@ TypeId
 TcpTimeStepGymEnv::GetTypeId (void)
 {
   static TypeId tid = TypeId ("ns3::TcpTimeStepGymEnv")
-    .SetParent<TcpGymEnv> ()
-    .SetGroupName ("OpenGym")
-    .AddConstructor<TcpTimeStepGymEnv> ()
+  .SetParent<TcpGymEnv> ()
+  .SetGroupName ("OpenGym")
+  .AddConstructor<TcpTimeStepGymEnv> ()
   ;
 
   return tid;
@@ -622,7 +628,7 @@ TcpTimeStepGymEnv::GetObservation()
     m_envReward = 10.0* throughput - 2000.0* segmentNotAcked / (segmentsAckedSum + segmentNotAcked) - 1000.0 *avgInterTx.GetSeconds();
   else
     m_envReward = 10.0* throughput - 1000.0 *avgInterTx.GetSeconds();
- 
+  
 
   int nLeaf = latestPackets->GetNumLeaf();
 

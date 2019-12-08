@@ -156,6 +156,8 @@ private:
   TcpSocketState::TcpCongState_t m_newState;
   TcpSocketState::TcpCAEvent_t m_event;
 
+  std::vector<double> lastThpts;
+
 
   // reward
   float m_reward;

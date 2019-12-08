@@ -31,7 +31,7 @@ port = 5555
 simTime = 10 # seconds
 stepTime = 0.5  # seconds
 seed = 12
-simArgs = {"--duration": simTime, "--transport_prot": "TcpRlTimeBased"}
+simArgs = {"--duration": simTime, "--transport_prot": "TcpRl"}
 debug = False
 
 
@@ -88,11 +88,11 @@ try:
         while True:
             stepIdx += 1
             action = tcpAgent.get_action(obs, reward, done, info)
-            print("---action: ", action)
+            #print("---action: ", action)
 
-            print("Step: ", stepIdx)
+            #print("Step: ", stepIdx)
             obs, reward, done, info = env.step(action)
-            print("---obs, reward, done, info: ", obs, reward, done, info)
+            #print("---obs, reward, done, info: ", obs, reward, done, info)
             observations.append(obs)
             # get existing agent of create new TCP agent if needed
             tcpAgent = get_agent(obs)
