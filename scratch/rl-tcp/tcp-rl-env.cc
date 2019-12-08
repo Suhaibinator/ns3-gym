@@ -373,6 +373,13 @@ Collect observations
     }
   }
 
+  DataRateValue sdr;
+  sendSideBottle->GetAttribute("DataRate", sdr);
+  box->AddValue(sdr.Get().GetBitRate()/1000.0); // 120
+  DataRateValue rdr;
+  recvSideBottle->GetAttribute("DataRate", rdr);
+  box->AddValue(rdr.Get().GetBitRate()/1000.0); // 121
+
 
   // Print data
   NS_LOG_INFO ("MyGetObservation: " << box);
