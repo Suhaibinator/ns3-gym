@@ -5,6 +5,9 @@ import argparse
 from ns3gym import ns3env
 from tcp_base import TcpTimeBased
 from tcp_newreno import TcpNewReno
+from tcp_new_relu import TcpNewReLu
+from keras.models import load_model
+from sklearn import load
 
 
 __author__ = "Piotr Gawlowicz"
@@ -33,7 +36,8 @@ seed = 12
 simArgs = {"--duration": simTime, "--transport_prot": "TcpRl"}
 debug = False
 
-
+model = load_model("TCP_model.h5")
+scaler = load("scaler.bin")
 
 env = ns3env.Ns3Env(port=port, stepTime=stepTime, startSim=startSim, simSeed=seed, simArgs=simArgs, debug=debug)
 # simpler:
@@ -55,7 +59,7 @@ def get_agent(obs):
     if tcpAgent is None:
         if tcpEnvType == 0:
             # event-based = 0
-            tcpAgent = TcpNewReno()
+            tcpAgent = TcpNewReLu(model, scaler)
         else:
             # time-based = 1
             tcpAgent = TcpTimeBased()
