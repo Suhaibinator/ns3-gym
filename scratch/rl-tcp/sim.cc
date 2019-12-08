@@ -100,7 +100,7 @@ int main (int argc, char *argv[])
 
   uint32_t nLeaf = 3;
   std::string transport_prot = "TcpRl";
-  double error_p = 0.00;
+  double error_p = 0.02;
   std::string bottleneck_bandwidth = "150Mbps";
   std::string bottleneck_delay = "0.01ms";
   std::string access_bandwidth = "30Mbps";

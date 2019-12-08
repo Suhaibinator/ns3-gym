@@ -2,11 +2,10 @@
 # -*- coding: utf-8 -*-
 
 import argparse
-from collections import defaultdict
 from ns3gym import ns3env
 from tcp_base import TcpTimeBased
 from tcp_newreno import TcpNewReno
-from matplotlib import pyplot as plt
+
 
 __author__ = "Piotr Gawlowicz"
 __copyright__ = "Copyright (c) 2018, Technische Universität Berlin"
@@ -113,25 +112,6 @@ finally:
     env.close()
     print("Done")
 
-
-nodeIds = defaultdict(int)
-congWindows = defaultdict(int)
-segmentsAcked = defaultdict(int)
-bytesInFlight = defaultdict(int)
-calledFunctions = defaultdict(int)
-congStates = defaultdict(int)
-
-wins = defaultdict(list)
-
-
-for obs in observations:
-    nodeIds[obs[3]] += 1
-    congWindows[obs[5]] += 1
-    wins[obs[3]].append(obs[5])
-    segmentsAcked[obs[7]] += 1
-    bytesInFlight[obs[8]] += 1
-    calledFunctions[obs[11]] += 1
-    congStates[obs[12]] += 1
 
 
 """
