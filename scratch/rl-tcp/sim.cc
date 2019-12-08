@@ -85,6 +85,7 @@ PrintRxCount()
 
 void updateThroughput(){
   double now = Simulator::Now().GetSeconds();
+  NS_LOG_UNCOND(now);
   double newThroughput = (75+35*sin(now*3.14159265*2/600) + 15*sin(now*2*3.1415926535/120))*100e6;
   sendSideNet->SetAttribute ("DataRate", DataRateValue (DataRate (newThroughput)));
   recvSideNet->SetAttribute ("DataRate", DataRateValue (DataRate (newThroughput)));
@@ -98,7 +99,7 @@ int main (int argc, char *argv[])
   double tcpEnvTimeStep = 0.1;
 
   uint32_t nLeaf = 3;
-  std::string transport_prot = "TcpRlTimeBased";
+  std::string transport_prot = "TcpRl";
   double error_p = 0.00;
   std::string bottleneck_bandwidth = "150Mbps";
   std::string bottleneck_delay = "0.01ms";
