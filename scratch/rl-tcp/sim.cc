@@ -276,7 +276,7 @@ for (uint32_t i = 0; i < nLeaf; i++){
   InternetStackHelper stack;
   stack.Install (senders.Get(0));
 
-  Config::SetDefault ("ns3::TcpL4Protocol::SocketType", TypeIdValue (TypeId::LookupByName ("ns3::TcpIllinois")));
+  Config::SetDefault ("ns3::TcpL4Protocol::SocketType", TypeIdValue (TypeId::LookupByName ("ns3::TcpNewReno")));
 
   for (uint32_t i = 1; i < nLeaf; i++){
     stack.Install(senders.Get(i));
