@@ -7,7 +7,7 @@ from tcp_base import TcpTimeBased
 from tcp_newreno import TcpNewReno
 from tcp_new_relu import TcpNewReLu
 from keras.models import load_model
-from sklearn import load
+from sklearn.externals.joblib import load
 
 
 __author__ = "Piotr Gawlowicz"

@@ -1,4 +1,5 @@
 from tcp_base import TcpEventBased
+import numpy as np
 import keras
 
 __author__ = "Piotr Gawlowicz"
@@ -52,9 +53,31 @@ def old_get_action(obs, reward, done, info):
 
     return actions
 
+def un_one_hot_encode(y):
+    return np.amax(y)
+
 class TcpNewReLu(TcpEventBased):
     """docstring for TcpNewReno"""
-    def __init__(self):
+    def __init__(self, model, scaler):
         super(TcpNewReLu, self).__init__()
-    def get_action(self, obs, reward, done, info, model):
-        return old_get_action(obs, reward, done, info)
+        self.model = model
+        self.scaler = scaler
+    def get_action(self, obs, reward, done, info):
+
+        y = self.model.predict(self.scaler.transform(np.asarray(obs[15:115]+[obs[117]]).reshape(1, -1)))
+        j = un_one_hot_encode(y)
+        if j <= 0:
+            return old_get_action(obs, reward, done, info)
+
+        ssThresh = obs[4]
+        # current contention window size
+        cWnd = obs[5]
+        # segment size
+        segmentSize = obs[6]
+        # number of acked segments
+        # estimated bytes in flight
+        bytesInFlight  = obs[8]
+
+        if j <= 2:
+            return [int(max (2 * segmentSize, bytesInFlight / 2)), cWnd + segmentSize]
+        return [int(max (3 * segmentSize, bytesInFlight / 2)), cWnd + segmentSize*4]
