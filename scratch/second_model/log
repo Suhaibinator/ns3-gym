@@ -1,0 +1,17 @@
+Waf: Entering directory `/home/kyho4515/wireless/ns3-gym/build'
+[1821/1877] Compiling scratch/rl-tcp/sim.cc
+[1837/1877] Linking build/scratch/rl-tcp/rl-tcp
+Waf: Leaving directory `/home/kyho4515/wireless/ns3-gym/build'
+Build commands will be stored in build/compile_commands.json
+'build' finished successfully (13.558s)
+Architecture is  [32, 16]
+Start command:  /home/kyho4515/wireless/ns3-gym/waf --run "rl-tcp --openGymPort=5555 --simSeed=12 --duration=100000 --transport_prot=TcpRlTimeBased"
+Started ns3 simulation script, Process Id:  1150
+<class 'gym.spaces.box.Box'> <class 'gym.spaces.box.Box'>
+gamma =  0.99
+policy
+observation_space
+action_space
+********** Iteration 0 ************
+[01;31mInterrupted[0m 
+Ctrl-C -> Exit

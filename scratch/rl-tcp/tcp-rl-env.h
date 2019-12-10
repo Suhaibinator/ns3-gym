@@ -188,12 +188,13 @@ private:
   Time m_timeStep;
   // state
   Ptr<const TcpSocketState> m_tcb;
-  std::vector<uint32_t> m_bytesInFlight;
+  //std::vector<uint32_t> m_bytesInFlight;
   std::vector<uint32_t> m_segmentsAcked;
   std::vector<Time> m_rttSamples;
 
   //uint64_t m_rttSampleNum {0};
   //Time m_rttSum {MicroSeconds (0.0)};
+  
 
   Time m_lastPktTxTime {MicroSeconds(0.0)};
   Time m_lastPktRxTime {MicroSeconds(0.0)};

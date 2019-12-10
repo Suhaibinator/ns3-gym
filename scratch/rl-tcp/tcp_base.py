@@ -104,37 +104,41 @@ class TcpTimeBased(Tcp):
         # TCP env type: event-based = 0 / time-based = 1
         envType = obs[1]
         # sim time in us
-        simTime_us = obs[2]
+        #simTime_us = obs[2]
         # unique node ID
-        nodeId = obs[3]
+        #nodeId = obs[3]
         # current ssThreshold
-        ssThresh = obs[4]
+        #ssThresh = obs[4]
         # current contention window size
-        cWnd = obs[5]
+        #cWnd = obs[5]
         # segment size
-        segmentSize = obs[6]
+        #segmentSize = obs[6]
         # bytesInFlightSum
-        bytesInFlightSum = obs[7]
+        #bytesInFlightSum = obs[7]
         # bytesInFlightAvg
-        bytesInFlightAvg = obs[8]
+        #bytesInFlightAvg = obs[8]
         # segmentsAckedSum
-        segmentsAckedSum = obs[9]
+        #segmentsAckedSum = obs[9]
         # segmentsAckedAvg
-        segmentsAckedAvg = obs[10]
+        #segmentsAckedAvg = obs[10]
         # avgRtt
-        avgRtt = obs[11]
+        #avgRtt = obs[11]
         # minRtt
-        minRtt = obs[12]
+        #minRtt = obs[12]
+        rttIncrease = obs[2]
+        rttRatio = obs[3]
+
+
         # avgInterTx
-        avgInterTx = obs[13]
+        avgInterTx = obs[4]
         # avgInterRx
-        avgInterRx = obs[14]
+        avgInterRx = obs[5]
         # throughput
-        throughput = obs[15]
+        throughput = obs[6]
 
         # compute new values
-        new_cWnd = 20 * int(segmentSize)
-        new_ssThresh = 10 * int(segmentSize)
+        new_cWnd = 20 
+        new_ssThresh = 10
 
         # return actions
         actions = [new_ssThresh, new_cWnd]

@@ -31,6 +31,7 @@
 #include <numeric>
 #include <cmath>
 
+
 namespace ns3 {
 
 NS_LOG_COMPONENT_DEFINE ("ns3::TcpGymEnv");
@@ -151,6 +152,7 @@ Define game over condition
 bool
 TcpGymEnv::GetGameOver()
 {
+  /*
   m_isGameOver = false;
   bool test = false;
   static float stepCounter = 0.0;
@@ -158,6 +160,10 @@ TcpGymEnv::GetGameOver()
   if (stepCounter == 10 && test) {
       m_isGameOver = true;
   }
+  */
+  m_isGameOver = false;
+  if (Simulator::Now().GetSeconds() >= 100000 - 0.2)
+      m_isGameOver = true;
   NS_LOG_INFO ("MyGetGameOver: " << m_isGameOver);
   return m_isGameOver;
 }
@@ -166,19 +172,14 @@ TcpGymEnv::GetGameOver()
 Define reward function
 */
 float
-TcpTimeStepGymEnv::GetReward()
+TcpGymEnv::GetReward()
 {
-  NS_LOG_INFO("MyGetReward: " << m_envReward);
+  if (int(Simulator::Now().GetSeconds()) % 10 == 0)
+    std::cout << "MyGetReward: " << m_envReward << std::endl;
   return m_envReward;
 }
 
 
-float
-TcpEventGymEnv::GetReward()
-{
-  NS_LOG_INFO("MyGetReward: " << m_envReward);
-  return m_envReward;
-}
 /*
 Define extra info. Optional
 */
@@ -197,8 +198,31 @@ TcpGymEnv::ExecuteActions(Ptr<OpenGymDataContainer> action)
 {
   Ptr<OpenGymBoxContainer<float> > box = DynamicCast<OpenGymBoxContainer<float> >(action);
   m_new_ssThresh = ceil(box->GetValue(0));
-  m_new_cWnd = ceil(box->GetValue(1));
+  m_new_cWnd = ceil(box->GetValue(0));
+
   NS_LOG_INFO ("MyExecuteActions: " << action);
+  return true;
+}
+bool
+TcpTimeStepGymEnv::ExecuteActions(Ptr<OpenGymDataContainer> action)
+{
+  Ptr<OpenGymBoxContainer<float> > box = DynamicCast<OpenGymBoxContainer<float> >(action);
+  if (box -> GetValue(0) >= 0)
+    m_new_cWnd = ceil(m_tcb->m_cWnd * (1 + 2.5* box->GetValue(0)));
+  else
+    m_new_cWnd = ceil(m_tcb->m_cWnd / (1 - box->GetValue(0)));
+  if (m_new_cWnd < 5* m_tcb -> m_segmentSize) {
+      //std::cout << "cWnd too small" << std::endl;
+      m_new_cWnd = 5* m_tcb -> m_segmentSize;
+  }
+  if (m_new_cWnd > 500* m_tcb -> m_segmentSize) {
+      //std::cout << "cWnd too large" << std::endl;
+      m_new_cWnd = 500* m_tcb -> m_segmentSize;
+  }
+  //NS_LOG_INFO ("MyExecuteActions: " << action);
+  if (int(Simulator::Now().GetSeconds()) % 10 == 0)
+    std::cout << "MyExecuteActions: " << m_new_cWnd << "action: " << box->GetValue(0) << std::endl;
+  m_new_ssThresh = 5*m_tcb-> m_segmentSize;
   return true;
 }
 
@@ -288,7 +312,7 @@ TcpEventGymEnv::GetObservationSpace()
   // congetsion algorithm (CA) state
   // CA event
   // ECN state
-  uint32_t parameterNum = 116;
+  uint32_t parameterNum = 16;
   float low = 0.0;
   float high = 1000000000.0;
   std::vector<uint32_t> shape = {parameterNum,};
@@ -305,7 +329,7 @@ Collect observations
 Ptr<OpenGymDataContainer>
 TcpEventGymEnv::GetObservation()
 {
-  uint32_t parameterNum = 116;
+  uint32_t parameterNum = 16;
   std::vector<uint32_t> shape = {parameterNum,};
 
   Ptr<OpenGymBoxContainer<uint64_t> > box = CreateObject<OpenGymBoxContainer<uint64_t> >(shape);
@@ -493,25 +517,29 @@ TcpTimeStepGymEnv::GetObservationSpace()
 {
   // socket unique ID
   // tcp env type: event-based = 0 / time-based = 1
-  // sim time in us
-  // node ID
-  // ssThresh
-  // cWnd
-  // segmentSize
-  // bytesInFlightSum
-  // bytesInFlightAvg
-  // segmentsAckedSum
-  // segmentsAckedAvg
-  // avgRtt
-  // minRtt
-  // avgInterTx
-  // avgInterRx
-  // throughput
-  uint32_t parameterNum = 16;
-  float low = 0.0;
-  float high = 1000000000.0;
+  // sim time in us XXX
+  // node ID XXX
+  // ssThresh XXX
+  // cWnd XXX
+  // segmentSize XXX
+  // bytesInFlightSum XXX
+  // bytesInFlightAvg XXX
+  // segmentsAckedSum XXX
+  // segmentsAckedAvg XXX
+  // avgRtt XXX
+  // minRtt XXX
+  // Rtt increase OOO
+  // Rtt ratio OOO
+  // avgInterTx XXX
+  // avgInterRx XXX
+  // throughput 
+  uint32_t parameterNum = 5;
+  //float low = 0.0;
+  //float high = 1000000000.0;
+  float low = -10000.0;
+  float high = 10000.0;
   std::vector<uint32_t> shape = {parameterNum,};
-  std::string dtype = TypeNameGet<uint64_t> ();
+  std::string dtype = TypeNameGet<float> ();
 
   Ptr<OpenGymBoxSpace> box = CreateObject<OpenGymBoxSpace> (low, high, shape, dtype);
   NS_LOG_INFO ("MyGetObservationSpace: " << box);
@@ -524,82 +552,124 @@ Collect observations
 Ptr<OpenGymDataContainer>
 TcpTimeStepGymEnv::GetObservation()
 {
-  uint32_t parameterNum = 16;
+  uint32_t parameterNum = 5;
   std::vector<uint32_t> shape = {parameterNum,};
 
-  Ptr<OpenGymBoxContainer<uint64_t> > box = CreateObject<OpenGymBoxContainer<uint64_t> >(shape);
+  Ptr<OpenGymBoxContainer<float> > box = CreateObject<OpenGymBoxContainer<float> >(shape);
 
   box->AddValue(m_socketUuid);
   box->AddValue(1);
-  box->AddValue(Simulator::Now().GetMicroSeconds ());
-  box->AddValue(m_nodeId);
-  box->AddValue(m_tcb->m_ssThresh);
-  box->AddValue(m_tcb->m_cWnd);
-  box->AddValue(m_tcb->m_segmentSize);
+  //box->AddValue(Simulator::Now().GetMicroSeconds ());
+  //box->AddValue(m_nodeId);
+  //box->AddValue(m_tcb->m_ssThresh);
+  //box->AddValue(m_tcb->m_cWnd);
+  //box->AddValue(m_tcb->m_segmentSize);
 
   //bytesInFlightSum
-  uint64_t bytesInFlightSum = std::accumulate(m_bytesInFlight.begin(), m_bytesInFlight.end(), 0);
-  box->AddValue(bytesInFlightSum);
+  //uint64_t bytesInFlightSum = std::accumulate(m_bytesInFlight.begin(), m_bytesInFlight.end(), 0);
+  //box->AddValue(bytesInFlightSum);
 
   //bytesInFlightAvg
+  /*
   uint64_t bytesInFlightAvg = 0;
   if (m_bytesInFlight.size()) {
     bytesInFlightAvg = bytesInFlightSum / m_bytesInFlight.size();
   }
-  box->AddValue(bytesInFlightAvg);
+  */
+  //box->AddValue(bytesInFlightAvg);
 
   //segmentsAckedSum
   uint64_t segmentsAckedSum = std::accumulate(m_segmentsAcked.begin(), m_segmentsAcked.end(), 0);
-  box->AddValue(segmentsAckedSum);
+  //box->AddValue(segmentsAckedSum);
 
   //segmentsAckedAvg
+  /*
   uint64_t segmentsAckedAvg = 0;
   if (m_segmentsAcked.size()) {
     segmentsAckedAvg = segmentsAckedSum / m_segmentsAcked.size();
   }
-  box->AddValue(segmentsAckedAvg);
-;
+  */
+  //box->AddValue(segmentsAckedAvg);
+
   //avgRtt
   Time avgRtt = Seconds(0.0);
-  if(m_rttSampleNum) {
-    avgRtt = m_rttSum / m_rttSampleNum;
-  }
-  box->AddValue(avgRtt.GetMicroSeconds ());
+  Time rttSum = Seconds(0.0);
+  for (uint32_t i=0; i<m_rttSamples.size(); i++)
+      rttSum += m_rttSamples.at(i);
+  if (m_rttSamples.size() > 0)
+    avgRtt = rttSum / m_rttSamples.size();
+  //if(m_rttSampleNum) {
+  //  avgRtt = m_rttSum / m_rttSampleNum;
+  //}
+  //box->AddValue(avgRtt.GetMicroSeconds ());
 
   //m_minRtt
-  box->AddValue(m_tcb->m_minRtt.GetMicroSeconds ());
+  //
+  //box->AddValue(m_tcb->m_minRtt.GetMicroSeconds ());
+  
+  //Rtt increase
+  Time rttIncrease = Seconds(0.0);
+  uint32_t half = m_rttSamples.size() / 2;
+  if (half >= 1) {
+      Time firstHalfSum = Seconds(0.0);
+      Time firstHalfAvg = Seconds(0.0);
+      Time secondHalfSum = Seconds(0.0);
+      Time secondHalfAvg = Seconds(0.0);
+      for (uint32_t i=0; i<half; i++)
+          firstHalfSum += m_rttSamples.at(i);
+      for (uint32_t i=half; i<m_rttSamples.size(); i++)
+          secondHalfSum += m_rttSamples.at(i);
+      rttIncrease = (secondHalfSum / (m_rttSamples.size()-half)) - (firstHalfSum / half);
+  }
+  box ->AddValue(rttIncrease.GetMilliSeconds ());
+
+  //Rtt ratio
+  box -> AddValue(avgRtt.GetMicroSeconds () / float(m_tcb -> m_minRtt.GetMicroSeconds ()));
 
   //avgInterTx
-  Time avgInterTx = Seconds(0.0);
-  if (m_interTxTimeNum) {
-    avgInterTx = m_interTxTimeSum / m_interTxTimeNum;
-  }
-  box->AddValue(avgInterTx.GetMicroSeconds ());
+  //Time avgInterTx = Seconds(0.0);
+  //if (m_interTxTimeNum) {
+  //  avgInterTx = m_interTxTimeSum / m_interTxTimeNum;
+  //}
+  //box->AddValue(avgInterTx.GetMilliSeconds ());
 
   //avgInterRx
-  Time avgInterRx = Seconds(0.0);
-  if (m_interRxTimeNum) {
-    avgInterRx = m_interRxTimeSum / m_interRxTimeNum;
-  }
-  box->AddValue(avgInterRx.GetMicroSeconds ());
+  //Time avgInterRx = Seconds(0.0);
+  //if (m_interRxTimeNum) {
+  //  avgInterRx = m_interRxTimeSum / m_interRxTimeNum;
+  //}
+  //box->AddValue(avgInterRx.GetMilliSeconds ());
 
   //throughput  bytes/s
-  float throughput = (segmentsAckedSum * m_tcb->m_segmentSize) / m_timeStep.GetSeconds();
+  float throughput = 0;
+  if (m_rttSamples.size()>0) {
+    throughput = float(m_tcb-> m_cWnd) / (*(m_rttSamples.end()-1)).GetSeconds();
+  }
+  //else std::cout << "no rtt" << std::endl;
+  if (int(Simulator::Now().GetSeconds()) % 10 == 0)
+        std::cout << "congestion window size: " << m_tcb -> m_cWnd << "rrt: " << (*(m_rttSamples.end()-1)).GetSeconds() << "rtt size: " << m_rttSamples.size() << std::endl;
   box->AddValue(throughput);
 
   // Print data
-  NS_LOG_INFO ("MyGetObservation: " << box);
-  float segmentNotAcked = bytesInFlightSum / float(m_tcb -> m_segmentSize);
-  if (segmentsAckedSum + segmentNotAcked > 0)
-    m_envReward = 10.0* throughput - 2000.0* segmentNotAcked / (segmentsAckedSum + segmentNotAcked) - 1000.0 *avgInterTx.GetSeconds();
-  else
-    m_envReward = 10.0* throughput - 1000.0 *avgInterTx.GetSeconds();
- 
-  m_bytesInFlight.clear();
-  m_segmentsAcked.clear();
+  NS_LOG_DEBUG ("MyGetObservation: " << box);
+  float segmentNotAcked = float(m_tcb -> m_bytesInFlight) / float(m_tcb -> m_segmentSize);
+  if (segmentsAckedSum + segmentNotAcked > 0) {
+    m_envReward = 2.0* throughput / m_tcb->m_segmentSize* segmentsAckedSum / (segmentsAckedSum + segmentNotAcked)- 2000.0* segmentNotAcked / (segmentsAckedSum + segmentNotAcked) - 1000.0 *avgRtt.GetSeconds();
+    if (int(Simulator::Now().GetSeconds()) % 10 == 0)
+        std::cout << Simulator::Now() << " Throughput: "<<throughput / m_tcb->m_segmentSize* segmentsAckedSum / (segmentsAckedSum + segmentNotAcked) << " Loss:" << segmentNotAcked / (segmentsAckedSum+segmentNotAcked) << " Latency: " << avgRtt.GetSeconds() << std::endl;
 
-  m_rttSampleNum = 0;
-  m_rttSum = MicroSeconds (0.0);
+  }
+  else {
+    m_envReward = 5.0* throughput - 1000.0 *avgRtt.GetSeconds();
+    if (int(Simulator::Now().GetSeconds()) % 10 == 0)
+        std::cout << Simulator::Now() << " Throughput: "<< throughput << " Loss:" << "no packet sent" << " Latency: " << avgRtt.GetSeconds() << std::endl; 
+  }
+  //m_bytesInFlight.clear();
+  m_segmentsAcked.clear();
+  
+  m_rttSamples.clear();
+  //m_rttSampleNum = 0;
+  //m_rttSum = MicroSeconds (0.0);
 
   m_interTxTimeNum = 0;
   m_interTxTimeSum = MicroSeconds (0.0);
@@ -642,7 +712,7 @@ TcpTimeStepGymEnv::GetSsThresh (Ptr<const TcpSocketState> tcb, uint32_t bytesInF
   NS_LOG_FUNCTION (this);
   NS_LOG_INFO(Simulator::Now() << " Node: " << m_nodeId << " GetSsThresh, BytesInFlight: " << bytesInFlight);
   m_tcb = tcb;
-  m_bytesInFlight.push_back(bytesInFlight);
+  //m_bytesInFlight.push_back(bytesInFlight);
 
   if (!m_started) {
     m_started = true;
@@ -660,8 +730,7 @@ TcpTimeStepGymEnv::IncreaseWindow (Ptr<TcpSocketState> tcb, uint32_t segmentsAck
   NS_LOG_FUNCTION (this);
   NS_LOG_INFO(Simulator::Now() << " Node: " << m_nodeId << " IncreaseWindow, SegmentsAcked: " << segmentsAcked);
   m_tcb = tcb;
-  m_segmentsAcked.push_back(segmentsAcked);
-  m_bytesInFlight.push_back(tcb->m_bytesInFlight);
+  //m_bytesInFlight.push_back(tcb->m_bytesInFlight);
 
   if (!m_started) {
     m_started = true;
@@ -670,6 +739,7 @@ TcpTimeStepGymEnv::IncreaseWindow (Ptr<TcpSocketState> tcb, uint32_t segmentsAck
   }
   // action
   tcb->m_cWnd = m_new_cWnd;
+  tcb->m_ssThresh = m_new_ssThresh;
 }
 
 void
@@ -678,8 +748,14 @@ TcpTimeStepGymEnv::PktsAcked (Ptr<TcpSocketState> tcb, uint32_t segmentsAcked, c
   NS_LOG_FUNCTION (this);
   NS_LOG_INFO(Simulator::Now() << " Node: " << m_nodeId << " PktsAcked, SegmentsAcked: " << segmentsAcked << " Rtt: " << rtt);
   m_tcb = tcb;
-  m_rttSum += rtt;
-  m_rttSampleNum++;
+  //tcb -> m_cWnd = m_new_cWnd;
+  //tcb -> m_ssThresh = m_new_ssThresh;
+
+  //std::cout << "rtt in pktsacked" << rtt.GetSeconds() << std::endl;
+  m_rttSamples.push_back(rtt);
+  m_segmentsAcked.push_back(segmentsAcked);
+  //m_rttSum += rtt;
+  //m_rttSampleNum++;
 }
 
 void
@@ -688,6 +764,8 @@ TcpTimeStepGymEnv::CongestionStateSet (Ptr<TcpSocketState> tcb, const TcpSocketS
   NS_LOG_FUNCTION (this);
   std::string stateName = GetTcpCongStateName(newState);
   NS_LOG_INFO(Simulator::Now() << " Node: " << m_nodeId << " CongestionStateSet: " << newState << " " << stateName);
+  //tcb -> m_cWnd = m_new_cWnd;
+  //tcb -> m_ssThresh = m_new_ssThresh;
   m_tcb = tcb;
 }
 
@@ -697,6 +775,8 @@ TcpTimeStepGymEnv::CwndEvent (Ptr<TcpSocketState> tcb, const TcpSocketState::Tcp
   NS_LOG_FUNCTION (this);
   std::string eventName = GetTcpCAEventName(event);
   NS_LOG_INFO(Simulator::Now() << " Node: " << m_nodeId << " CwndEvent: " << event << " " << eventName);
+  //tcb -> m_cWnd = m_new_cWnd;
+  //tcb -> m_ssThresh = m_new_ssThresh;
   m_tcb = tcb;
 }
 
@@ -708,9 +788,15 @@ TcpTimeStepGymEnv::GetActionSpace()
 {
   // new_ssThresh
   // new_cWnd
-  uint32_t parameterNum = 2;
-  float low = m_tcb->m_segmentSize;
-  float high = 65535;
+  uint32_t parameterNum = 1;
+  //float low = m_tcb->m_segmentSize;
+  //float high = 65535;
+  
+  // delta 
+  float low = -10000;
+  float high = 10000;
+
+
   std::vector<uint32_t> shape = {parameterNum,};
   //std::string dtype = TypeNameGet<uint32_t> ();
   std::string dtype = TypeNameGet<float> ();

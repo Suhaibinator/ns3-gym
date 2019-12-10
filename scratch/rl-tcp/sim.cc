@@ -32,6 +32,8 @@
 #include <iostream>
 #include <fstream>
 #include <string>
+#include <cstdlib>
+#include <ctime>
 
 #include "ns3/core-module.h"
 #include "ns3/network-module.h"
@@ -57,10 +59,10 @@ using namespace ns3;
 
 NS_LOG_COMPONENT_DEFINE ("TcpVariantsComparison");
 
-static std::vector<uint64_t> rxPkts;
-static std::vector<uint64_t> rxTimes;
+//static std::vector<uint64_t> rxPkts;
+//static std::vector<uint64_t> rxTimes;
 QueueDiscContainer qd;
-
+/*
 static void
 CountRxPkts(uint32_t sinkId, Ptr<const Packet> packet, const Address & srcAddr)
 {
@@ -77,35 +79,37 @@ PrintRxCount()
     NS_LOG_UNCOND("---SinkId: "<< i << " RxPkts: " << rxPkts.at(i));
   }
 }
-
+*/
 
 int main (int argc, char *argv[])
 {
   uint32_t openGymPort = 5555;
   double tcpEnvTimeStep = 0.1;
 
-  uint32_t nLeaf = 3;
+  uint32_t nLeaf = 1;
   std::string transport_prot = "TcpRl";
-  double error_p = 0.0;
-  std::string bottleneck_bandwidth = "150Mbps";
+  srand(time(NULL));
+  double error_p = rand() / double(RAND_MAX) *0.05;
+  double bandwidth = rand() / double(RAND_MAX) * 5 + 2;
+  std::string bottleneck_bandwidth = std::to_string(bandwidth) + std::string("Mbps");
   std::string bottleneck_delay = "0.01ms";
-  std::string access_bandwidth = "30Mbps";
+  std::string access_bandwidth = std::to_string(bandwidth*2) + std::string("Mbps");
   std::string access_delay = "2ms";
   std::string prefix_file_name = "TcpVariantsComparison";
   uint64_t data_mbytes = 0;
   uint32_t mtu_bytes = 400;
   double duration = 10.0;
-  uint32_t run = 0;
+  uint32_t run = rand();
   bool flow_monitor = false;
   bool sack = true;
   std::string queue_disc_type = "ns3::PfifoFastQueueDisc";
   std::string recovery = "ns3::TcpClassicRecovery";
 
 
-  Ptr<MyReceived> RxPacketsHolder = CreateObject<MyReceived> (&rxPkts);
-  Names::Add("RxPacketsHolder", RxPacketsHolder);
-  Ptr<MyReceived> RxTimessHolder = CreateObject<MyReceived> (&rxTimes);
-  Names::Add("RxTimesHolder", RxTimessHolder);
+  //Ptr<MyReceived> RxPacketsHolder = CreateObject<MyReceived> (&rxPkts);
+  //Names::Add("RxPacketsHolder", RxPacketsHolder);
+  //Ptr<MyReceived> RxTimessHolder = CreateObject<MyReceived> (&rxTimes);
+  //Names::Add("RxTimesHolder", RxTimessHolder);
 
 
   CommandLine cmd;
@@ -132,8 +136,10 @@ int main (int argc, char *argv[])
   cmd.AddValue ("flow_monitor", "Enable flow monitor", flow_monitor);
   cmd.AddValue ("queue_disc_type", "Queue disc type for gateway (e.g. ns3::CoDelQueueDisc)", queue_disc_type);
   cmd.AddValue ("sack", "Enable or disable SACK option", sack);
-  cmd.AddValue ("recovery", "Recovery algorithm type to use (e.g., ns3::TcpPrrRecovery", recovery);
+  //cmd.AddValue ("recovery", "Recovery algorithm type to use (e.g., ns3::TcpPrrRecovery", recovery);
   cmd.Parse (argc, argv);
+  
+  std::cout << "error: " << error_p << std::endl << "Bandwidth: " << bandwidth << std::endl;
 
   transport_prot = std::string ("ns3::") + transport_prot;
 
@@ -210,7 +216,10 @@ int main (int argc, char *argv[])
   // Configure the error model
   // Here we use RateErrorModel with packet error rate
   Ptr<UniformRandomVariable> uv = CreateObject<UniformRandomVariable> ();
-  uv->SetStream (50);
+  uv->SetAttribute("Min", DoubleValue(0.0));
+  uv->SetAttribute("Max", DoubleValue(1.0));
+  
+  //uv->SetStream (50);
   RateErrorModel error_model;
   error_model.SetRandomVariable (uv);
   error_model.SetUnit (RateErrorModel::ERROR_UNIT_PACKET);
@@ -220,7 +229,7 @@ int main (int argc, char *argv[])
   PointToPointHelper bottleNeckLink;
   bottleNeckLink.SetDeviceAttribute  ("DataRate", StringValue (bottleneck_bandwidth));
   bottleNeckLink.SetChannelAttribute ("Delay", StringValue (bottleneck_delay));
-  //bottleNeckLink.SetDeviceAttribute  ("ReceiveErrorModel", PointerValue (&error_model));
+  bottleNeckLink.SetDeviceAttribute  ("ReceiveErrorModel", PointerValue (&error_model));
 
 
 
@@ -347,7 +356,7 @@ for (uint32_t i = 0; i < nLeaf; i++){
 
     ApplicationContainer clientApp = ftp.Install (senders.Get (i));
     clientApp.Start (Seconds (start_time * i)); // Start after sink
-    clientApp.Stop (Seconds (stop_time - 3)); // Stop before the sink
+    clientApp.Stop (Seconds (stop_time - 0.1)); // Stop before the sink
   }
 
   // Flow monitor
@@ -358,6 +367,7 @@ for (uint32_t i = 0; i < nLeaf; i++){
   }
 
   // Count RX packets
+  /*
   for (uint32_t i = 0; i < nLeaf; ++i)
   {
     rxPkts.push_back(0);
@@ -365,7 +375,7 @@ for (uint32_t i = 0; i < nLeaf; i++){
     Ptr<PacketSink> pktSink = DynamicCast<PacketSink>(sinkApps.Get(i));
     pktSink->TraceConnectWithoutContext ("Rx", MakeBoundCallback (&CountRxPkts, i));
   }
-
+  */
 
   Simulator::Stop (Seconds (stop_time));
   Simulator::Run ();
@@ -380,7 +390,6 @@ for (uint32_t i = 0; i < nLeaf; i++){
     openGymInterface->NotifySimulationEnd();
   }
 
-  PrintRxCount();
   Simulator::Destroy ();
   return 0;
 }

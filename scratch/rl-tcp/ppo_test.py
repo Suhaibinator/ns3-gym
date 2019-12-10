@@ -16,7 +16,7 @@ import os
 import sys
 import inspect
 
-arch_str = "32,16"
+arch_str = "16,8"
 if arch_str == "":
     arch = []
 else:
@@ -28,16 +28,11 @@ training_sess = None
 
 iterationNum = 1
 
-class MyMlpPolicy(FeedForwardPolicy):
-    def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=False, **_kwargs):
-        super(MyMlpPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse, net_arch=[{"pi":arch, "vf":arch}], feature_extraction="mlp", **_kwargs)
-        global training_sess
-        training_sess = sess
 
 
-simArgs = {"--duration": 100000, "--transport_prot": "TcpRlTimeBased"}
+simArgs = {"--duration": 50, "--transport_prot": "TcpRlTimeBased"}
 
-env = ns3env.Ns3Env(port=5555, stepTime= 0.1, startSim=1,simSeed=12,simArgs=simArgs,debug=True)
+env = ns3env.Ns3Env(port=5555, stepTime= 0.1, startSim=1, simArgs=simArgs,debug=True)
 ob = env.reset()
 action = env.action_space.sample()
 print(type(env.observation_space), type(env.action_space))
@@ -45,17 +40,17 @@ print(type(env.observation_space), type(env.action_space))
 
 gamma = 0.99
 print("gamma = ", gamma)
-model = PPO1(MlpPolicy, env, verbose=2, schedule= 'constant', timesteps_per_actorbatch=8192, optim_batchsize=2048, gamma=gamma)
+model = PPO1(MlpPolicy, env, verbose=1, schedule= 'constant', timesteps_per_actorbatch=8192, optim_batchsize=2048, gamma=gamma)
 #model = PPO1(MyMlpPolicy, env, verbose=2, schedule= 'constant', timesteps_per_actorbatch=8192, optim_batchsize=2048, gamma=gamma)
-#for i in range(0,6):
-i=0
+model.save("testmodel_%d" % gamma)
 try:
     #model.learn(total_timesteps=(1600*410))
     #with model.graph.as_default():
     #    saver = tf.compat.v1.train.Saver()
     #    saver.save(training_sess, "./pcc_model_%d.ckpt" % i)
-    model.learn(total_timesteps=(1*410))
-    model.save("testmodel")
+    for i in range(0,6):
+        model.learn(total_timesteps=(8192*10))
+        model.save("testmodel_%d" % i)
 
 except KeyboardInterrupt:
     print("Ctrl-C -> Exit")
